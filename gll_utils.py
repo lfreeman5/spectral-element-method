@@ -14,6 +14,8 @@ def eval_pn(x,N):
 def gll_pts_wts(N):
     '''
     Get GLL weights and points for integration with Nth legendre polynomial
+    The points are the roots of P'_{n-1}, ie the derivative of the N-1 polynomial
+       as well as -1 and 1
     Returns tuple:
         (pts, wts) where both are 1x(N+1) numpy arrays  
     '''
@@ -36,3 +38,15 @@ def integrate_gll(a,b,f,N):
     x_pts = (b-a)/2*pts + (b+a)/2
     f_evals = [f(x_val) for x_val in x_pts]
     return (b-a)/2 * np.dot(wts, f_evals)
+
+def print_matrix(A, fmt="{:10.4f}"):
+    A = np.array(A, dtype=float)
+    if A.ndim == 1:
+        if A.shape[0] == 1:  # row vector
+            print(" ".join(fmt.format(x) for x in A))
+        else:  # column vector
+            for x in A:
+                print(fmt.format(x))
+    else:
+        for row in A:
+            print(" ".join(fmt.format(x) for x in row))
