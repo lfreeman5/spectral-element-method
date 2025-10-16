@@ -1,7 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from lagrange_utils import create_lagrange_derivative, create_lagrange_poly
+from lagrange_utils import create_lagrange_derivative, create_lagrange_poly, construct_solution
 from gll_utils import gll_pts_wts, integrate_gll, print_matrix
+import sympy as sp
 
 '''
     Uses the Spectral element method to solve:
@@ -13,9 +14,7 @@ from gll_utils import gll_pts_wts, integrate_gll, print_matrix
 pi = np.pi
 
 # Problem Constants: 
-x_a, x_b = -1, 1 # x_a<=x<=x_
-forcing_function = lambda x: pi**2/4 * np.cos(pi*x/2)
-u_L, u_R = 0.0, 0.0
+x_a, x_b = -1, 1 # x_a<=x<=x_b. Assumed to be constant and x ∈ [−1, 1]. This requirement will be removed later.
 
 def construct_a_matrix(N):
     A = np.zeros((N+1,N+1))
@@ -49,22 +48,49 @@ def modify_A_b_dirichlet(A,b,u_L,u_R):
     b[-1]=u_R
     return A,b
 
-if __name__ == '__main__':
-    N=9
+def solve_1d_poisson(f,N,u_L,u_R):
+    '''
+        Solves the 1D poisson equation:
+            d²u/dx² = f(x),   x ∈ [−1, 1], u(-1)=u_L, u(1)=u_R
+        using order-N Lagrange polynomials on GLL points
+        Arguments:
+            f - the forcing function. Callable.
+            N - polynomial order
+            u_L - LHS dirichlet BC
+            u_R - RHS dirichlet BC
+        Returns:
+        solution - callable function of x
+    '''
     A = construct_a_matrix(N)
-    print('A matrix:')
-    print_matrix(A)
-    b = construct_b_vector(N, forcing_function)
-    print('B vector:')
-    print_matrix(b)
+    b = construct_b_vector(N, f)
+    A, b = modify_A_b_dirichlet(A, b, u_L, u_R)
+    u = np.linalg.solve(A,b)
+    solution = construct_solution(u, gll_pts_wts(N)[0])
+    return solution
 
-    # modify A and b with row replacement
-    A,b = modify_A_b_dirichlet(A,b,0.0,0.0)
+def compare_exact_approx(exact, approx):
+    x_vals = np.linspace(x_a, x_b, 200)
+    exact_vals = [exact(x) for x in x_vals]
+    approx_vals = [approx(x) for x in x_vals]
 
-    u = np.linalg.solve(A, b)
-    print('U(solution) vector:')
-    print_matrix(u)
+    plt.figure(figsize=(8, 5))
+    plt.plot(x_vals, exact_vals, label='Exact Solution', color='blue')
+    plt.plot(x_vals, approx_vals, label='Approximation', linestyle='--', color='red')
+    plt.xlabel(r'$x$')
+    plt.ylabel(r'$u(x)$')
+    plt.grid(True)
+    plt.legend(loc='best')
+    plt.show()
 
-    (pts,_) = gll_pts_wts(N)
-    print('solution points:')
-    print_matrix(pts)
+if __name__ == '__main__':
+    N=50
+
+    x = sp.Symbol('x')
+    u_exact = sp.sin(10*sp.pi*x) # Exact solution
+    f = -sp.diff(u_exact,x,2) # Compute corresponding forcing function
+    exact = sp.lambdify(x,u_exact,'numpy')
+    forcing_func = sp.lambdify(x,f,'numpy')
+    u_L, u_R = exact(x_a), exact(x_b)
+
+    u_approx = solve_1d_poisson(forcing_func, N, u_L, u_R)
+    compare_exact_approx(exact, u_approx)
