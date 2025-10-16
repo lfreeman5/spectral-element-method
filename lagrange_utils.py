@@ -61,6 +61,13 @@ def create_lagrange_derivative_continuous(i,x_arr):
             return li(x) * np.sum(1/(x-x_m))
     return L_i_prime
 
+def create_lagrange_derivative_unified(i, x_arr):
+    n = len(x_arr)
+    denom = np.prod([x_arr[i]-x_arr[j] for j in range(n) if j!=i])
+    def L_i_prime(x):
+        return np.sum([np.prod([x-x_arr[k] for k in range(n) if k!= i and k!=j]) for j in range(n) if j!=i])/denom
+    return L_i_prime
+
 def construct_solution(u_arr, x_arr):
     '''
         Constructs the SEM solution u(x) ≈ sum(u_i*l_i(x))
