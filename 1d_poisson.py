@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from lagrange_utils import create_lagrange_derivative, create_lagrange_poly, construct_solution
 from gll_utils import gll_pts_wts, integrate_gll, print_matrix
 import sympy as sp
+import time
 
 '''
     Uses the Spectral element method to solve:
@@ -16,16 +17,21 @@ pi = np.pi
 # Problem Constants: 
 x_a, x_b = -1, 1 # x_a<=x<=x_b. Assumed to be constant and x ∈ [−1, 1]. This requirement will be removed later.
 
-def construct_a_matrix(N):
-    A = np.zeros((N+1,N+1))
-    (gll_pts,_) = gll_pts_wts(N)
+def construct_a_matrix(N): # Only assembled once, so maybe bad performance isn't the end of the world
+    A = np.zeros((N+1, N+1))
+    (gll_pts, _) = gll_pts_wts(N)
+    start_time = time.time()
+    lagrange_polys = [create_lagrange_poly(i, gll_pts) for i in range(N+1)]
+    lagrange_derivs = [create_lagrange_derivative(i, gll_pts) for i in range(N+1)]
     for i in range(N+1):
-        L_i_prime = create_lagrange_derivative(i, gll_pts)
-        L_i = create_lagrange_poly(i, gll_pts)
+        L_i_prime = lagrange_derivs[i]
+        L_i = lagrange_polys[i]
         for j in range(N+1):
-            L_j_prime = create_lagrange_derivative(j, gll_pts)
-            Lij_prime = lambda x: L_i_prime(x)*L_j_prime(x)
-            A[i,j] = integrate_gll(x_a, x_b, Lij_prime, N) - L_j_prime(1)*L_i(1) + L_j_prime(-1)*L_i(-1)
+            L_j_prime = lagrange_derivs[j]
+            Lij_prime = lambda x: L_i_prime(x) * L_j_prime(x)
+            A[i, j] = integrate_gll(x_a, x_b, Lij_prime, N) - L_j_prime(1) * L_i(1) + L_j_prime(-1) * L_i(-1)
+        print(f"Time to compute row {i} of A: {time.time() - start_time:.4f} seconds")
+        start_time = time.time()
     return A
 
 def construct_b_vector(N,f):
@@ -84,9 +90,8 @@ def compare_exact_approx(exact, approx):
 
 if __name__ == '__main__':
     N=50
-
     x = sp.Symbol('x')
-    u_exact = sp.sin(10*sp.pi*x) # Exact solution
+    u_exact = sp.sin(10*x) # Exact solution
     f = -sp.diff(u_exact,x,2) # Compute corresponding forcing function
     exact = sp.lambdify(x,u_exact,'numpy')
     forcing_func = sp.lambdify(x,f,'numpy')
