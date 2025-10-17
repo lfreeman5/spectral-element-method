@@ -20,7 +20,7 @@ def create_lagrange_poly(i,x_arr):
         return value
     return L_i
 
-def create_lagrange_derivative(i,x_arr):
+def create_lagrange_derivative_gll_points(i,x_arr):
     '''
     returns a function l'_i, the derivative of the ith lagrange polynomial
     However, for now I only care about the derivative on the GLL nodes
@@ -47,21 +47,21 @@ def create_lagrange_derivative(i,x_arr):
             return float((w[i] / w[j]) / (x_arr[j] - x_arr[i]))
     return L_i_prime
 
-def create_lagrange_derivative_continuous(i,x_arr):
-    '''
-    not very performant. Mostly for plotting purposes.
-    '''
-    def L_i_prime(x):
-        L_i_prime_pts = create_lagrange_derivative(i,x_arr)
-        if(x in x_arr):
-            return L_i_prime_pts(x)
-        else:
-            li = create_lagrange_poly(i,x_arr)
-            x_m = np.array([x_arr[m] for m in range(0,len(x_arr)) if m != i])
-            return li(x) * np.sum(1/(x-x_m))
-    return L_i_prime
+# def create_lagrange_derivative_continuous(i,x_arr):
+#     '''
+#     not very performant. Mostly for plotting purposes.
+#     '''
+#     def L_i_prime(x):
+#         L_i_prime_pts = create_lagrange_derivative(i,x_arr)
+#         if(x in x_arr):
+#             return L_i_prime_pts(x)
+#         else:
+#             li = create_lagrange_poly(i,x_arr)
+#             x_m = np.array([x_arr[m] for m in range(0,len(x_arr)) if m != i])
+#             return li(x) * np.sum(1/(x-x_m))
+#     return L_i_prime
 
-def create_lagrange_derivative_unified(i, x_arr):
+def create_lagrange_derivative(i, x_arr):
     n = len(x_arr)
     denom = np.prod([x_arr[i]-x_arr[j] for j in range(n) if j!=i])
     def L_i_prime(x):

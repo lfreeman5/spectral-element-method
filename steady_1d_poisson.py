@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from lagrange_utils import create_lagrange_derivative, create_lagrange_poly, construct_solution
+from lagrange_utils import create_lagrange_derivative, create_lagrange_poly, construct_solution, create_lagrange_derivative_gll_points
 from gll_utils import gll_pts_wts, integrate_gll, print_matrix
 import sympy as sp
 import time
@@ -22,11 +22,15 @@ def construct_a_matrix(N): # Only assembled once, so maybe bad performance isn't
     (gll_pts, _) = gll_pts_wts(N)
     start_time = time.time()
     lagrange_polys = [create_lagrange_poly(i, gll_pts) for i in range(N+1)]
-    lagrange_derivs = [create_lagrange_derivative(i, gll_pts) for i in range(N+1)]
+    lagrange_derivs = [create_lagrange_derivative_gll_points(i, gll_pts) for i in range(N+1)]
     for i in range(N+1):
         L_i_prime = lagrange_derivs[i]
         L_i = lagrange_polys[i]
         for j in range(N+1):
+            if((j!=0 and j!=N) and (i!=0 and i!=N)): # Can't assume outside rows/cols are symmetric with non-homogenous Dirichlet BCs 
+                if(A[j,i]!=0.0):
+                    A[i,j]=A[j,i]
+                    continue
             L_j_prime = lagrange_derivs[j]
             Lij_prime = lambda x: L_i_prime(x) * L_j_prime(x)
             A[i, j] = integrate_gll(x_a, x_b, Lij_prime, N) - L_j_prime(1) * L_i(1) + L_j_prime(-1) * L_i(-1)
@@ -89,9 +93,10 @@ def compare_exact_approx(exact, approx):
     plt.show()
 
 if __name__ == '__main__':
-    N=50
+    N=100
+
     x = sp.Symbol('x')
-    u_exact = sp.sin(10*x) # Exact solution
+    u_exact = sp.sin(1/(x+1.05)) # Exact solution
     f = -sp.diff(u_exact,x,2) # Compute corresponding forcing function
     exact = sp.lambdify(x,u_exact,'numpy')
     forcing_func = sp.lambdify(x,f,'numpy')
