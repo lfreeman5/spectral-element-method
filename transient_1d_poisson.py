@@ -181,10 +181,10 @@ def compare_exact_approx_animation(exact, U_solution, N, dt, t_f):
     plt.show()
 
 if __name__ == '__main__':
-    N=15
+    N=25
     (gll_pts, gll_wts) = gll_pts_wts(N)
     tf = 30
-    dt = 0.005
+    dt = 0.02
 
     x,t = sp.Symbol('x'), sp.Symbol('t')
     u_exact = sp.sin(t/(x+2)) # Exact solution
