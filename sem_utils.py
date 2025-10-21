@@ -27,6 +27,21 @@ def construct_a_matrix(N): # Only assembled once, so maybe bad performance isn't
             A[i, j] = integrate_gll(-1, 1, Lij_prime, N) - L_j_prime(1) * L_i(1) + L_j_prime(-1) * L_i(-1)
     return A
 
+def construct_c_matrix(N,M): # Anti-aliasing using M>N quadrature 
+    # I'm not sure that I have i,j right here
+    C = np.zeros((N+1,N+1)) 
+    (gll_pts, _) = gll_pts_wts(N)
+    lagrange_polys = [create_lagrange_poly(i, gll_pts) for i in range(N+1)]
+    lagrange_derivs = [create_lagrange_derivative(i, gll_pts) for i in range(N+1)]
+    for i in range(N+1):
+        print(f'Creating row {i+1} of C')
+        L_i = lagrange_polys[i]
+        for j in range(N+1):
+            L_j_prime = lagrange_derivs[j]
+            Lij_prime = lambda x: L_i(x) * L_j_prime(x)
+            C[i, j] = integrate_gll(-1, 1, Lij_prime, M)
+    return C
+
 def construct_b_vector(N,f): # Restricted to x \in [-1,1]
     b = np.zeros(N+1)
     (gll_pts,_) = gll_pts_wts(N)
