@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from lagrange_utils import create_lagrange_derivative, create_lagrange_poly, construct_solution, create_lagrange_derivative_gll_points
 from gll_utils import gll_pts_wts, integrate_gll, print_matrix
+from sem_utils import modify_A_b_dirichlet, construct_a_matrix, construct_b_vector, construct_m_matrix
 import sympy as sp
 import time
 
@@ -16,60 +17,6 @@ pi = np.pi
 
 # Problem Constants: 
 x_a, x_b = -1, 1 # x_a<=x<=x_b. Assumed to be constant and x ∈ [−1, 1]. This requirement will be removed later.
-
-def construct_a_matrix(N): # Only assembled once, so cost is amortized for transient problem
-    A = np.zeros((N+1, N+1))
-    (gll_pts, _) = gll_pts_wts(N)
-    start_time = time.time()
-    lagrange_polys = [create_lagrange_poly(i, gll_pts) for i in range(N+1)]
-    lagrange_derivs = [create_lagrange_derivative_gll_points(i, gll_pts) for i in range(N+1)]
-    for i in range(N+1):
-        L_i_prime = lagrange_derivs[i]
-        L_i = lagrange_polys[i]
-        for j in range(N+1):
-            if((j!=0 and j!=N) and (i!=0 and i!=N)): # Can't assume outside rows/cols are symmetric with non-homogenous Dirichlet BCs 
-                if(A[j,i]!=0.0):
-                    A[i,j]=A[j,i]
-                    continue
-            L_j_prime = lagrange_derivs[j]
-            Lij_prime = lambda x: L_i_prime(x) * L_j_prime(x)
-            A[i, j] = integrate_gll(x_a, x_b, Lij_prime, N) - L_j_prime(1) * L_i(1) + L_j_prime(-1) * L_i(-1)
-        # print(f"Time to compute row {i} of A: {time.time() - start_time:.4f} seconds")
-        start_time = time.time()
-    return A
-
-def construct_m_matrix(N):
-    (_, gll_wts) = gll_pts_wts(N)
-    M = np.diag(gll_wts)
-    return M
-
-def construct_b_vector(N,f,t_eval):
-    '''
-    Constructs the load vector b for the 1D Poisson equation.
-    Arguments:
-        N - polynomial order (number of intervals is N, number of points is N+1)
-        f - forcing function, callable, f=f(x,t)
-    Returns:
-        b - load vector of length N+1
-    '''
-    b = np.zeros(N+1)
-    (gll_pts,_) = gll_pts_wts(N)
-    for i in range(N+1):
-        L_i = create_lagrange_poly(i,gll_pts)
-        f_L_i = lambda x: L_i(x)*f(x,t_eval)
-        b[i] = integrate_gll(x_a, x_b, f_L_i, N)
-
-    return b
-
-def modify_A_b_dirichlet(A,b,u_L,u_R):
-    # Uses row replacement to enforce dirichlet boundary conditions
-    A[0,:]=0.0
-    A[0,0]=1.0
-    A[-1,:]=0.0
-    A[-1,-1]=1.0
-    b[0]=u_L
-    b[-1]=u_R
-    return A,b
 
 def backward_euler_step(A,M,f,u_0,u_L,u_R,dt):
     '''
@@ -119,7 +66,8 @@ def transient_solution(f,N,u_L,u_R,u0,dt,t_f):
     for i, t in enumerate(times[:-1]):
         if((i+1)%100==0):
             print(f'Computing step i={i} at t={t}')
-        f_vec = construct_b_vector(N,f,t) # evaluated at next timestep which is t (specific to backward euler)
+        f_N = lambda x: f(x,t)
+        f_vec = construct_b_vector(N,f_N) # evaluated at next timestep which is t (specific to backward euler)
         U[i+1,:] = backward_euler_step(A,M,f_vec,U[i,:],u_L(t),u_R(t),dt)    
 
     return U
@@ -181,7 +129,7 @@ def compare_exact_approx_animation(exact, U_solution, N, dt, t_f):
     plt.show()
 
 if __name__ == '__main__':
-    N=25
+    N=15
     (gll_pts, gll_wts) = gll_pts_wts(N)
     tf = 30
     dt = 0.02
@@ -195,7 +143,6 @@ if __name__ == '__main__':
     print("    du/dt - d²u/dx² = f(x, t)")
     print(f"with exact solution: u(x, t) = {u_exact}")
     print(f"and forcing function: f(x, t) = {f}")
-
 
     exact = sp.lambdify((x,t),u_exact,'numpy')
     forcing_func = sp.lambdify((x,t),f,'numpy')
