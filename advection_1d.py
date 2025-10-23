@@ -8,7 +8,7 @@ pi = np.pi
 
 
 def forward_euler_step(M_inv,C,f_vec,dt,u_0):
-    cfl = np.max(u_0)*dt/(2/len(f_vec))
+    cfl = np.max(u_0)*dt/(2/len(f_vec)) # Incorrect as dx aren't evenly spaced!
     if(cfl>0.9):
         print(f'Stability warning: CFL = {cfl}')
 
@@ -62,26 +62,67 @@ def plot_advection_solution(U, x_pts, times, exact_fn=None, t_idx=None):
     plt.figure(figsize=(8, 5))
     plt.plot(x_pts[:-1], U[t_idx], 'r--', label='Numerical')
     if exact_fn:
-        plt.plot(x_pts[:-1], exact_fn(x_pts[:-1], times[t_idx]), 'b', label='Exact')
+        x_pts_fine = np.linspace(-1,1,200)
+        plt.plot(x_pts_fine, exact_fn(x_pts_fine, times[t_idx]), 'b', label='Exact')
     plt.title(f"t = {times[t_idx]:.2f}")
     plt.legend(); plt.grid(); plt.show()
 
+def animate_advection_solution(U, x_pts, times, exact_fn=None, interval=30):
+    """
+    Animates the numerical and (optionally) exact solution over time.
+    """
+    import matplotlib.animation as animation
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    line_num, = ax.plot([], [], 'r--', label='Numerical')
+    line_exact = None
+    if exact_fn:
+        line_exact, = ax.plot([], [], 'b', label='Exact')
+    ax.set_xlim(x_pts[0], x_pts[-2])
+    ax.set_ylim(np.min(U), np.max(U))
+    ax.set_title("Advection Solution Animation")
+    ax.set_xlabel('x')
+    ax.set_ylabel('u(x)')
+    ax.legend()
+    ax.grid()
+
+    def init():
+        line_num.set_data([], [])
+        if line_exact:
+            line_exact.set_data([], [])
+            return line_num, line_exact
+        return (line_num,)
+
+    def animate(i):
+        line_num.set_data(x_pts[:-1], U[i])
+        if exact_fn:
+            x_pts_fine = np.linspace(-1, 1, 200)
+            line_exact.set_data(x_pts_fine, exact_fn(x_pts_fine, times[i]))
+            ax.set_title(f"t = {times[i]:.2f}")
+            return line_num, line_exact
+        ax.set_title(f"t = {times[i]:.2f}")
+        return (line_num,)
+
+    frames = len(times)
+    ani = animation.FuncAnimation(
+        fig, animate, frames=frames, init_func=init, blit=True, interval=interval, repeat=False
+    )
+    plt.show()
+
 if __name__ == '__main__':
-    # Parameters
-    N, tf, dt = 15, 2.0, 0.002
+    N, tf, dt = 35, 2.0, 0.0002
 
-    # Domain and initial condition
     (x_pts, _) = gll_pts_wts(N)
-    c = 1.0  # Advection speed
 
-    # Sine wave pulse initial condition
-    u0 = lambda x: np.sin(2 * np.pi * x)
+    # Sinusoidal ICs
+    u0 = lambda x: np.sin(2 * np.pi * (x-0.25))
+    # Square wave ICs
+    u0 = lambda x: np.where(abs(x)<0.5, 1, 0)
 
-    # Forcing function (zero for pure advection)
-    f = lambda x, t: 0.0
+    f = lambda x, t: 0
 
     # Exact solution for comparison
-    exact_sol = lambda x, t: np.sin(2 * np.pi * ((x - c * t) % 1))
+    exact_sol = lambda x, t: u0(np.mod(x-t+1,2)-1)
 
     # Solve
     times = np.arange(dt, tf + dt, dt)
@@ -90,3 +131,6 @@ if __name__ == '__main__':
     # Plot at several time steps
     for t_idx in [0, len(times)//4, len(times)//2, -1]:
         plot_advection_solution(U, x_pts, times, exact_fn=exact_sol, t_idx=t_idx)
+
+    # Animate the solution
+    animate_advection_solution(U, x_pts, times, exact_fn=exact_sol)
