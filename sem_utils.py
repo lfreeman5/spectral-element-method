@@ -65,3 +65,69 @@ def modify_A_b_dirichlet(A,b,u_L,u_R): # Used generally on assembled systems.
     b[0]=u_L
     b[-1]=u_R
     return A,b
+
+def construct_ax_matrix_2d(N):
+    '''
+        Computes the diffusion operator tensor which is 4D!
+        Uses the GLL points of P_N --> N+1 points --> size(A_x) = (N+1)^4 
+        
+        Using 4 loops probably isn't optimal... but it makes sense that way.
+        Plus, cost of Ax construction is amortized. And it only takes 8s to form 64x64x64x64 matrix
+    '''
+    A_x = np.zeros((N+1,N+1,N+1,N+1))
+    (gll_pts, gll_wts) = gll_pts_wts(N)
+    lagrange_derivs = [create_lagrange_derivative(i,gll_pts) for i in range(N+1)]
+    ld_vals = [[lagrange_derivs[i](gll_pts[j])for j in range(N+1)] for i in range(N+1)] # Evaluation of l_i'(xi_j)
+    ld_vals = np.array(ld_vals)
+
+    for j in range(N+1):
+        for q in range(N+1):
+            if(q!=j): continue
+            for i in range(N+1):
+                for p in range(N+1):
+                    A_x[i,j,p,q] = gll_wts[j]*np.sum(ld_vals[i,:]*ld_vals[p,:]*gll_wts)
+
+    return A_x
+
+def construct_ay_matrix_2d(N):
+    '''
+    Similar to construct_ax_matrix_2d but creates the y-diffusion component
+    '''
+    A_y = np.zeros((N+1,N+1,N+1,N+1))
+    (gll_pts, gll_wts) = gll_pts_wts(N)
+    lagrange_derivs = [create_lagrange_derivative(i,gll_pts) for i in range(N+1)]
+    ld_vals = [[lagrange_derivs[i](gll_pts[j])for j in range(N+1)] for i in range(N+1)] # Evaluation of l_i'(xi_j)
+    ld_vals = np.array(ld_vals)
+
+    for i in range(N+1):
+        for p in range(N+1):
+            if(p!=i): continue
+            for j in range(N+1):
+                for q in range(N+1):
+                    A_y[i,j,p,q] = gll_wts[i]*np.sum(ld_vals[j,:]*ld_vals[q,:]*gll_wts)
+
+    return A_y
+
+def construct_m_matrix_2d(N):
+    '''
+        Computes the mass matrix in 2D: size(M) = (N+1)^4
+        It's diagonal.
+    '''
+    (_, gll_wts) = gll_pts_wts(N)
+    M = np.zeros((N+1,N+1,N+1,N+1))
+    for i in range(N+1):
+        M[i,i,i,i] = gll_wts[i]**2.
+    return M
+
+def construct_load_matrix_2d(N,func):
+    '''
+        Computes f_ij, the load matrix (vector). Size(f)=(N+1)^2
+
+        f must be callable of the form f(x,y) ie it is valid for a single timestep (not f(x,y,t))
+    '''
+    f = np.zeros((N+1,N+1))
+    (gll_pts,gll_wts) = gll_pts_wts(N)
+    for i in range(N+1):
+        for j in range(N+1):
+            f[i,j] = func(gll_pts[i],gll_pts[j])*gll_wts[i]*gll_wts[j]
+    return f
