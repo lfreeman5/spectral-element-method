@@ -76,3 +76,32 @@ def construct_solution(u_arr, x_arr):
     def u_approx(x):
         return sum(u_arr[i] * funcs[i](x) for i in range(len(x_arr)))
     return u_approx
+
+def construct_solution_2d(u_arr, x_arr):
+    '''
+        Constructs the 2d SEM solution u(x,y) = sum_i sum_j u_ij l_i(x) l_j(y)
+    '''
+    funcs = [create_lagrange_poly(i, x_arr) for i in range(len(x_arr))]
+    def u_approx(x,y):
+        val = 0
+        for i in range(len(x_arr)):
+            for j in range(len(x_arr)):
+                val += u_arr[i,j]*funcs[i](x)*funcs[j](y)
+    return u_approx
+
+def construct_solution_2d_fast(u_arr, x_arr):
+    '''
+        Constructs the 2d SEM solution u(x,y) = sum_i sum_j u_ij l_i(x) l_j(y)
+        Vectorized for performance by chatgpt
+    '''
+    funcs = [create_lagrange_poly(i, x_arr) for i in range(len(x_arr))]
+    def u_approx(x, y):
+        x = np.atleast_1d(x)
+        y = np.atleast_1d(y)
+        Lx = np.array([[f(xi) for f in funcs] for xi in x])  # shape (len(x), N)
+        Ly = np.array([[f(yi) for f in funcs] for yi in y])  # shape (len(y), N)
+        result = np.einsum('ij,xi,yj->xy', u_arr, Lx, Ly)
+        if result.size == 1:
+            return result.item()
+        return result
+    return u_approx

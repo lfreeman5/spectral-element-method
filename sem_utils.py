@@ -131,3 +131,42 @@ def construct_load_matrix_2d(N,func):
         for j in range(N+1):
             f[i,j] = func(gll_pts[i],gll_pts[j])*gll_wts[i]*gll_wts[j]
     return f
+
+def map_4d_to_2d(A,N):
+    '''
+    maps a_ijpq to a_kl
+    Assumes square A (ie size of all 4 dimensions is equal to N+1)
+    '''
+    B = np.zeros(((N+1)*(N+1),(N+1)*(N+1)))
+    for i in range(N+1):
+        for j in range(N+1):
+            for p in range(N+1):
+                for q in range(N+1):
+                    k = i+j*(N+1)
+                    l = p+q*(N+1)
+                    B[k,l]=A[i,j,p,q]
+    return B
+
+def map_2d_to_1d(A,N):
+    '''
+    maps a_ij to a_k
+    Assumes square a_ij, both sides of dimension N+1
+    '''
+    F = np.zeros(((N+1)*(N+1)))
+    for i in range(N+1):
+        for j in range(N+1):
+            k = i+j*(N+1)
+            F[k]=A[i,j]
+    return F
+
+def map_1d_to_2d(F,N):
+    '''
+    reverse of map_2d_to_1d
+    maps F_k of size (N+1)^2 to a_ij (N+1)x(N+1)
+    '''
+    A = np.zeros((N+1,N+1))
+    for k in range((N+1)*(N+1)):
+        i = np.mod(k,N+1)
+        j = np.floor_divide(k,N+1)
+        A[i,j] = F[k]
+    return A
