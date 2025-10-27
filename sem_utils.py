@@ -116,7 +116,8 @@ def construct_m_matrix_2d(N):
     (_, gll_wts) = gll_pts_wts(N)
     M = np.zeros((N+1,N+1,N+1,N+1))
     for i in range(N+1):
-        M[i,i,i,i] = gll_wts[i]**2.
+        for j in range(N+1):
+            M[i,j,i,j] = gll_wts[i]*gll_wts[j]
     return M
 
 def construct_load_matrix_2d(N,func):
@@ -170,3 +171,49 @@ def map_1d_to_2d(F,N):
         j = np.floor_divide(k,N+1)
         A[i,j] = F[k]
     return A
+
+def modify_A_b_dirichlet_2D(bcs,A,b,N):
+    """
+    Applies Dirichlet boundary conditions to the flattened 2D system matrix A and vector b.
+
+    Parameters:
+        bcs (list): List of four functions [u_L, u_R, u_B, u_T] specifying boundary values on the left, right, bottom, and top edges, respectively.
+        A (ndarray): Flattened 2D system matrix of shape ((N+1)**2, (N+1)**2).
+        b (ndarray): Flattened right-hand side vector of length (N+1)**2.
+        N (int): Polynomial order (number of GLL points is N+1).
+
+    Returns:
+        tuple: Modified (A, b) with Dirichlet boundary conditions enforced.
+    """
+    [u_L, u_R, u_B, u_T] = bcs
+    (pts, _) = gll_pts_wts(N)
+    # LHS i=0
+    for j in range(N+1):
+        y_j = pts[j]
+        k=j*(N+1)
+        b[k] = u_L(y_j)
+        A[k,:] = 0.0
+        A[k,k] = 1.0    
+    # RHS i=N
+    for j in range(N+1):
+        y_j = pts[j]
+        k=N+j*(N+1)
+        b[k] = u_R(y_j)
+        A[k,:] = 0.0
+        A[k,k] = 1.0
+    # Bottom j=0:
+    for i in range(N+1):
+        x_i = pts[i]
+        k = i
+        b[k] = u_B(x_i)
+        A[k,:] = 0.0
+        A[k,k] = 1.0
+    # Top j=N:
+    for i in range(N+1):
+        x_i = pts[i]
+        k = i+N*(N+1)
+        b[k] = u_T(x_i)
+        A[k,:] = 0.0
+        A[k,k] = 1.0
+
+    return A, b
