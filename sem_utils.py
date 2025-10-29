@@ -96,7 +96,7 @@ def construct_ay_matrix_2d(N):
     A_y = np.zeros((N+1,N+1,N+1,N+1))
     (gll_pts, gll_wts) = gll_pts_wts(N)
     lagrange_derivs = [create_lagrange_derivative(i,gll_pts) for i in range(N+1)]
-    ld_vals = [[lagrange_derivs[i](gll_pts[j])for j in range(N+1)] for i in range(N+1)] # Evaluation of l_i'(xi_j)
+    ld_vals = [[lagrange_derivs[i](gll_pts[j])for j in range(N+1)] for i in range(N+1)] # Evaluation of l_i'(ξ_j)
     ld_vals = np.array(ld_vals)
 
     for i in range(N+1):
@@ -107,6 +107,44 @@ def construct_ay_matrix_2d(N):
                     A_y[i,j,p,q] = gll_wts[i]*np.sum(ld_vals[j,:]*ld_vals[q,:]*gll_wts)
 
     return A_y
+
+def construct_cx_matrix_2d(N,cx):
+    '''
+    creates the x-advection tensor.
+    Inputs:
+    N: Polynomial order
+    cx: vector field of x-advection speed, cx=cx(x,y) defined on [-1,1]^2
+    NOTE: This doesn't use over-integration for dealiasing. Problem? 
+    '''
+    C_x = np.zeros((N+1,N+1,N+1,N+1))
+    (gll_pts, gll_wts) = gll_pts_wts(N)
+    lagrange_derivs = [create_lagrange_derivative(i,gll_pts) for i in range(N+1)]
+    ld_vals = np.array([[lagrange_derivs[i](gll_pts[j])for j in range(N+1)] for i in range(N+1)]) # Evaluation of l_i'(ξ_j) as ld_vals[i,j]
+    for j in range(N+1):
+        for q in range(N+1):
+            if (q!=j): continue # equivalent to delta_jq. Can get rid of a loop by using q=j but it makes more sense to read this way
+            for i in range(N+1):
+                for p in range(N+1):
+                    C_x[i,j,p,q] = gll_wts[j]*gll_wts[i] * ld_vals[p,i] * cx(gll_pts[i], gll_pts[j])
+
+    return C_x
+
+def construct_cy_matrix_2d(N,cy):
+    '''
+    y-advection tensor.
+    cy = cy(x,y) on [-1,1]^2
+    '''
+    C_y = np.zeros((N+1,N+1,N+1,N+1))
+    (gll_pts, gll_wts) = gll_pts_wts(N)
+    lagrange_derivs = [create_lagrange_derivative(i,gll_pts) for i in range(N+1)]
+    ld_vals = np.array([[lagrange_derivs[i](gll_pts[j])for j in range(N+1)] for i in range(N+1)]) # Evaluation of l_i'(ξ_j) as ld_vals[i,j]
+    for i in range(N+1):
+        for p in range(N+1):
+            if(p!=i): continue # equivalent to applying delta_ip
+            for j in range(N+1):
+                for q in range(N+1):
+                    C_y[i,j,p,q] = gll_wts[i]*gll_wts[j]*ld_vals[q,j]*cy(gll_pts[i],gll_pts[j])
+    return C_y
 
 def construct_m_matrix_2d(N):
     '''

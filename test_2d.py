@@ -7,6 +7,15 @@ if __name__ == "__main__":
 
     for N in Ns:
         t0 = time.time()
+        cx_field = lambda x,y: 2*np.sin(x)*np.sin(y)
+        Cx = construct_cx_matrix_2d(N, cx_field)
+        t1 = time.time()
+        size = Cx.nbytes if hasattr(Cx, 'nbytes') else Cx.__sizeof__()
+        print(f"Cx N={N}, time={t1-t0:.6f}s, size={size} bytes")
+    print('\n\n')
+
+    for N in Ns:
+        t0 = time.time()
         Ax = construct_m_matrix_2d(N)
         t1 = time.time()
         size = Ax.nbytes if hasattr(Ax, 'nbytes') else Ax.__sizeof__()

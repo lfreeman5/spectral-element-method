@@ -104,7 +104,7 @@ def plot_solution(U_solution, times, gll_pts, t, N_pts=50):
     fig.colorbar(c, ax=ax)
     plt.show()
 
-def animate_solution(U_solution, times, gll_pts, N_pts=100, filename='transient_solution.mp4'):
+def animate_solution(U_solution, times, gll_pts, N_pts=100, filename='diffusion_transient_solution.mp4'):
     """
     Creates a color plot animation of the solution evolving in time.
     Optimized for performance and outputs an MP4 file.
