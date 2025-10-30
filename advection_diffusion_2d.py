@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from lagrange_utils import create_lagrange_derivative, create_lagrange_poly, construct_solution, create_lagrange_derivative_gll_points, construct_solution_2d_fast
 from gll_utils import gll_pts_wts, integrate_gll, print_matrix
 from sem_utils import construct_ax_matrix_2d, construct_ay_matrix_2d, construct_load_matrix_2d, construct_m_matrix_2d, modify_A_b_dirichlet_2D, \
-    map_4d_to_2d, map_2d_to_1d, map_1d_to_2d, construct_cx_matrix_2d, construct_cy_matrix_2d
+    map_4d_to_2d, map_2d_to_1d, map_1d_to_2d, construct_cx_matrix_2d, construct_cy_matrix_2d, construct_cx_cy_overintegrated_fast
 import sympy as sp
 import time
 from matplotlib.animation import FuncAnimation
@@ -73,8 +73,9 @@ def transient_solution(f,c,alpha,N,u0,bcs,dt,t_f):
     print(f'Computing Ax, Ay, Cx, Cy, and M')
     Ax = construct_ax_matrix_2d(N, alpha)
     Ay = construct_ay_matrix_2d(N, alpha)
-    Cx = construct_cx_matrix_2d(N,c[0])
-    Cy = construct_cy_matrix_2d(N,c[1])
+    Cx, Cy = construct_cx_cy_overintegrated_fast(N,int(1.5*N),c)
+    # Cx = construct_cx_matrix_2d(N,c[0])
+    # Cy = construct_cy_matrix_2d(N,c[1])
 
     M = construct_m_matrix_2d(N)
     print(f'Complete, beginning timestepping')
