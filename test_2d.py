@@ -3,7 +3,24 @@ import time
 import numpy as np
 
 if __name__ == "__main__":
-    Ns = [2, 4, 8, 16, 32, 64]
+    Ns = [2, 4, 8, 16, 32]
+
+    # Check that fast and regular produce the same:
+    N=12
+    c = [lambda x,y: 2*np.sin(x)*np.sin(y),lambda x,y: 2*np.sin(x)*np.sin(y)]
+    Cxf,Cyf = construct_cx_cy_overintegrated_fast(N,int(1.5*N),c)
+    Cxs,Cys = construct_cx_cy_overintegrated(N,int(1.5*N),c)
+    print(f'Difference in Cx between optimized function and slow function: {np.linalg.norm(Cxf-Cxs)}')
+
+
+    for N in Ns:
+        t0 = time.time()
+        cx_field = lambda x,y: 2*np.sin(x)*np.sin(y)
+        Cx,Cy = construct_cx_cy_overintegrated_fast(N, int(1.5*N), [cx_field,cx_field])
+        t1 = time.time()
+        size = Cx.nbytes if hasattr(Cx, 'nbytes') else Cx.__sizeof__()
+        print(f"Cx and Cy with overintegration, optimized, N={N} M={int(1.5*N)}, time={t1-t0:.6f}s, size={size} bytes")
+    print('\n\n')
 
     for N in Ns:
         t0 = time.time()

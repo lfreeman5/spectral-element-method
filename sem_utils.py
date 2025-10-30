@@ -175,6 +175,38 @@ def construct_cx_cy_overintegrated(N, M, c):
                     C_yijpq[i, j, p, q] = yval
     return C_xijpq, C_yijpq
 
+
+def construct_cx_cy_overintegrated_fast(N, M, c):
+    """
+    Optimized overintegrated advection tensor construction.
+    """
+    cx, cy = c
+    ngll_pts, ngll_wts = map(np.asarray, gll_pts_wts(N))
+    mgll_pts, mgll_wts = map(np.asarray, gll_pts_wts(M))
+
+    lagrange_polys = [create_lagrange_poly(i, ngll_pts) for i in range(N+1)]
+    lagrange_derivs = [create_lagrange_derivative(i, ngll_pts) for i in range(N+1)]
+
+    # Basis and derivative evaluations
+    l_vals = np.array([[lagrange_polys[i](mgll_pts[j]) for j in range(M+1)] for i in range(N+1)])
+    ld_vals = np.array([[lagrange_derivs[i](mgll_pts[j]) for j in range(M+1)] for i in range(N+1)])
+
+    # Coefficient fields (must support array inputs)
+    X, Y = np.meshgrid(mgll_pts, mgll_pts, indexing='ij')
+    cx_vals = cx(X, Y)
+    cy_vals = cy(X, Y)
+
+    # Weighted coefficients
+    Wx = np.outer(mgll_wts, mgll_wts)
+    Cx = cx_vals * Wx
+    Cy = cy_vals * Wx
+
+    # Final contractions
+    C_xijpq = np.einsum('mn,pm,im,qn,jn->ijpq', Cx, ld_vals, l_vals, l_vals, l_vals)
+    C_yijpq = np.einsum('mn,pm,im,qn,jn->ijpq', Cy, l_vals, l_vals, ld_vals, l_vals)
+
+    return C_xijpq, C_yijpq
+
 def construct_m_matrix_2d(N):
     '''
         Computes the mass matrix in 2D: size(M) = (N+1)^4
