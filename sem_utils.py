@@ -66,7 +66,7 @@ def modify_A_b_dirichlet(A,b,u_L,u_R): # Used generally on assembled systems.
     b[-1]=u_R
     return A,b
 
-def construct_ax_matrix_2d(N):
+def construct_ax_matrix_2d(N, alpha=1):
     '''
         Computes the diffusion operator tensor which is 4D!
         Uses the GLL points of P_N --> N+1 points --> size(A_x) = (N+1)^4 
@@ -87,9 +87,9 @@ def construct_ax_matrix_2d(N):
                 for p in range(N+1):
                     A_x[i,j,p,q] = gll_wts[j]*np.sum(ld_vals[i,:]*ld_vals[p,:]*gll_wts)
 
-    return A_x
+    return alpha*A_x
 
-def construct_ay_matrix_2d(N):
+def construct_ay_matrix_2d(N, alpha=1):
     '''
     Similar to construct_ax_matrix_2d but creates the y-diffusion component
     '''
@@ -106,7 +106,7 @@ def construct_ay_matrix_2d(N):
                 for q in range(N+1):
                     A_y[i,j,p,q] = gll_wts[i]*np.sum(ld_vals[j,:]*ld_vals[q,:]*gll_wts)
 
-    return A_y
+    return alpha*A_y
 
 def construct_cx_matrix_2d(N,cx):
     '''
@@ -145,6 +145,35 @@ def construct_cy_matrix_2d(N,cy):
                 for q in range(N+1):
                     C_y[i,j,p,q] = gll_wts[i]*gll_wts[j]*ld_vals[q,j]*cy(gll_pts[i],gll_pts[j])
     return C_y
+
+def construct_cx_cy_overintegrated(N, M, c):
+    '''
+    Overintegrated advection tensor construction.
+    Vectorized for speed using numpy broadcasting and sum.
+    '''
+    [cx, cy] = c
+    C_xijpq, C_yijpq = np.zeros((N+1,N+1,N+1,N+1)), np.zeros((N+1,N+1,N+1,N+1))
+    (ngll_pts, ngll_wts) = gll_pts_wts(N)
+    (mgll_pts, mgll_wts) = gll_pts_wts(M)
+    lagrange_polys = [create_lagrange_poly(i, ngll_pts) for i in range(N+1)]
+    lagrange_derivs = [create_lagrange_derivative(i, ngll_pts) for i in range(N+1)]
+    l_vals = np.array([[lagrange_polys[i](mgll_pts[j]) for j in range(M+1)] for i in range(N+1)])  # (N+1, M+1)
+    ld_vals = np.array([[lagrange_derivs[i](mgll_pts[j]) for j in range(M+1)] for i in range(N+1)])  # (N+1, M+1)
+    cx_vals = np.array([[cx(mgll_pts[n], mgll_pts[m]) for n in range(M+1)] for m in range(M+1)])  # (M+1, M+1)
+    cy_vals = np.array([[cy(mgll_pts[n], mgll_pts[m]) for n in range(M+1)] for m in range(M+1)])  # (M+1, M+1)
+
+    # Vectorized computation for all i, j, p, q
+    for i in range(N+1):
+        for j in range(N+1):
+            for p in range(N+1):
+                for q in range(N+1):
+                    sx = np.sum(mgll_wts * cx_vals[:, :] * ld_vals[p, :] * l_vals[i, :], axis=1)  # shape (M+1,)
+                    xval = np.sum(sx * mgll_wts * l_vals[j, :] * l_vals[q, :])
+                    sy = np.sum(mgll_wts * cy_vals[:, :] * l_vals[p, :] * l_vals[i, :], axis=1)  # shape (M+1,)
+                    yval = np.sum(sy * mgll_wts * l_vals[j, :] * ld_vals[q, :])
+                    C_xijpq[i, j, p, q] = xval
+                    C_yijpq[i, j, p, q] = yval
+    return C_xijpq, C_yijpq
 
 def construct_m_matrix_2d(N):
     '''

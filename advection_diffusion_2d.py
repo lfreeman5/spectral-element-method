@@ -44,13 +44,14 @@ def backward_euler_step(N,Ax,Ay,Cx,Cy,M,f,u_0,BCs,dt):
     u1 = np.linalg.solve(LHS_matrix, RHS_vector)
     return map_1d_to_2d(u1,N)
 
-def transient_solution(f,c,N,u0,bcs,dt,t_f):
+def transient_solution(f,c,alpha,N,u0,bcs,dt,t_f):
     '''
     Computes the transient solution of the 2D Poisson equation using backward Euler time stepping.
 
     Arguments:
         f    - forcing function, callable, f(x, y, t)
         c    - vector containing two wavespeed functions c=[c_x(x,y), c_y(x,y)]
+        alpha - diffusion coefficient
         N    - polynomial order (number of GLL points per dimension is N+1)
         u0   - initial condition, f(x, y), callable, vectorized
         bcs  - list of 4 Dirichlet boundary condition functions [U_L, U_R, U_B, U_T]
@@ -70,8 +71,8 @@ def transient_solution(f,c,N,u0,bcs,dt,t_f):
 
     # Steady Quantities computed:
     print(f'Computing Ax, Ay, Cx, Cy, and M')
-    Ax = construct_ax_matrix_2d(N)
-    Ay = construct_ay_matrix_2d(N)
+    Ax = construct_ax_matrix_2d(N, alpha)
+    Ay = construct_ay_matrix_2d(N, alpha)
     Cx = construct_cx_matrix_2d(N,c[0])
     Cy = construct_cy_matrix_2d(N,c[1])
 
@@ -115,7 +116,7 @@ def animate_solution(U_solution, times, gll_pts, N_pts=100, filename='advection_
     Creates a color plot animation of the solution evolving in time.
     Optimized for performance and outputs an MP4 file.
     The colorbar (z-axis) is fixed between 0 and 1.
-    Now uses higher resolution (N_pts=100) and prints progress.
+    Now avoids updating the colorbar and uses ffmpeg ultrafast preset with 480p video resolution.
     """
     x = np.linspace(-1, 1, N_pts)
     y = np.linspace(-1, 1, N_pts)
@@ -134,7 +135,8 @@ def animate_solution(U_solution, times, gll_pts, N_pts=100, filename='advection_
             U_plot = U_plot.T
         U_frames[i] = U_plot
 
-    fig, ax = plt.subplots(figsize=(8, 6), dpi=150)  # Higher resolution figure
+    # Set up the figure for 480p resolution
+    fig, ax = plt.subplots(figsize=(6,4), dpi=100)
     c = ax.pcolormesh(X, Y, U_frames[0], cmap='viridis', shading='auto', vmin=-1, vmax=1)
     fig.colorbar(c, ax=ax)
     ax.set_xlabel('x')
@@ -145,31 +147,31 @@ def animate_solution(U_solution, times, gll_pts, N_pts=100, filename='advection_
         U_plot = U_frames[frame]
         c.set_array(U_plot.ravel())
         title.set_text(f'Solution at t = {times[frame]:.4f}')
-        c.set_clim(vmin=-1, vmax=1)
         return c, title
 
     anim = FuncAnimation(fig, update, frames=num_frames, blit=True)
     print(f"Saving animation to {filename} (this may take a while)...")
-    # Use higher bitrate for higher quality
-    anim.save(filename, writer='ffmpeg', fps=15, bitrate=8000)
+    # Use ffmpeg ultrafast preset for faster saving
+    anim.save(filename, writer='ffmpeg', fps=15, bitrate=8000, extra_args=['-preset', 'ultrafast'])
     print("Animation saved.")
     plt.close(fig)
 
 if __name__ == '__main__':
     N=8
     (gll_pts, gll_wts) = gll_pts_wts(N)
-    tf = 0.15
-    dt = 0.0002
+    tf = 2.5
+    dt = 0.002
 
-    u_0 = lambda x,y: np.sin(pi*x)*np.sin(pi*y)
+    alpha = 0.0001
+    u_0 = lambda x, y: (1 - np.maximum(np.abs(x), np.abs(y)))**2  # Updated initial condition
     f = lambda x,y,t:0
     bc = lambda xy: 0.0 # Homogenous dirichlet BCs for now
     bcs = [bc,bc,bc,bc]
-    cx = lambda x,y: 15
-    cy = lambda x,y: 15
+    cx = lambda x,y: -1*y
+    cy = lambda x,y: 1*y
     c = [cx, cy]
 
-    U_solution, times = transient_solution(f, c, N, u_0, bcs, dt, tf)
+    U_solution, times = transient_solution(f, c, alpha, N, u_0, bcs, dt, tf)
 
     # # Plot the solution at the final time
     # plot_solution(U_solution, times, gll_pts, tf)

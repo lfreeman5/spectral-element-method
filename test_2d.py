@@ -8,6 +8,16 @@ if __name__ == "__main__":
     for N in Ns:
         t0 = time.time()
         cx_field = lambda x,y: 2*np.sin(x)*np.sin(y)
+        Cx,Cy = construct_cx_cy_overintegrated(N, int(1.5*N), [cx_field,cx_field])
+        t1 = time.time()
+        size = Cx.nbytes if hasattr(Cx, 'nbytes') else Cx.__sizeof__()
+        print(f"Cx and Cy with overintegration N={N} M={int(1.5*N)}, time={t1-t0:.6f}s, size={size} bytes")
+    print('\n\n')
+
+
+    for N in Ns:
+        t0 = time.time()
+        cx_field = lambda x,y: 2*np.sin(x)*np.sin(y)
         Cx = construct_cx_matrix_2d(N, cx_field)
         t1 = time.time()
         size = Cx.nbytes if hasattr(Cx, 'nbytes') else Cx.__sizeof__()
