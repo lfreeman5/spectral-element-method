@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from lagrange_utils import create_lagrange_derivative, create_lagrange_poly, construct_solution, create_lagrange_derivative_gll_points, construct_solution_2d_fast
 from gll_utils import gll_pts_wts, integrate_gll, print_matrix
 from sem_utils import construct_ax_matrix_2d, construct_ay_matrix_2d, construct_load_matrix_2d, construct_m_matrix_2d, modify_A_b_dirichlet_2D, \
-    map_4d_to_2d, map_2d_to_1d, map_1d_to_2d, construct_cx_matrix_2d, construct_cy_matrix_2d, construct_cx_kron_2d
+    map_4d_to_2d, map_2d_to_1d, map_1d_to_2d, construct_cx_matrix_2d, construct_cy_matrix_2d, construct_cx_kron_2d, construct_cx_kron_2d_GLL, construct_cx_cy_overintegrated_fast
 import sympy as sp
 import time
 from matplotlib.animation import FuncAnimation
@@ -75,26 +75,69 @@ def transient_solution(f,c,N,u0,bcs,dt,t_f):
     print("")
     Ax = construct_ax_matrix_2d(N)
     Ay = construct_ay_matrix_2d(N)
-    Cx = construct_cx_matrix_2d(N,c[0])
+    
     start = time.time()
+    Cx = construct_cx_matrix_2d(N,c[0])
     Cx_2d = map_4d_to_2d(Cx, N)
     end = time.time()
-    print(f"Time to compute Cx_2d: {end - start:.6f} seconds")
+    print(f" Time to compute Cx_2d (loops, no over integration): {end - start:.6f} seconds")
+    
+    # test Logan's new function
+    start = time.time()
+    Cx_4d, Cy_4d = construct_cx_cy_overintegrated_fast(N, int(2.5*N)+1, c)
+    Cx_2d1 = map_4d_to_2d(Cx_4d, N)
+    end = time.time()
+    print(f"Time to compute Cx_2d (Logan's GLL overintegration): {end - start:.6f} seconds")
+    # Cy_2d1 = map_4d_to_2d(Cy_4d, N)
+
 
     # Measure time for construct_cx_kron_2d
     start = time.time()
     Cx_kron = construct_cx_kron_2d(N, c[0])
     end = time.time()
-    print(f"Time to compute Cx_kron: {end - start:.6f} seconds\n")
+    print(f"                         Time to compute Cx_kron GL: {end - start:.6f} seconds")
 
-    print("Initial Shape (loops)", Cx.shape)
-    print("        Shape (loops)", Cx_2d.shape)
-    print("        Shape  (kron)", Cx_kron.shape)
+    # Measure time for construct_cx_kron_2d GLL
+    start = time.time()
+    Cx_kron_GLL = construct_cx_kron_2d_GLL(N, c[0])
+    end = time.time()
+    print(f"                        Time to compute Cx_kron GLL: {end - start:.6f} seconds\n")
+
+    # print("    Initial Shape (loops)", Cx.shape)
+    print("                      Shape (loops): ", Cx_2d.shape)
+    print("Shape (Logan's overintegration GLL): ", Cx_2d1.shape)
+    print("                   Shape  (kron GL): ", Cx_kron.shape)
+    print("                   Shape (kron GLL): ", Cx_kron_GLL.shape)
     print("")
-    print("loops first few elements:", [float(x) for x in Cx_2d[0,:5]])
-    print(" kron first few elements:", [float(x) for x in Cx_kron[0,:5]])
+    print("                       loops first few elements:", [float(x) for x in Cx_2d[0,:5]])
+    print("Logan's GLL overintegration, first few elements:", [float(x) for x in Cx_2d1[0,:5]])
+    print("                     kron GL first few elements:", [float(x) for x in Cx_kron[0,:5]])
+    print("                    kron GLL first few elements:", [float(x) for x in Cx_kron_GLL[0,:5]])
     error = np.linalg.norm(Cx_2d - Cx_kron, 'fro')
-    print("\nFro norm = ", error)
+    print("\n  Frobinius norm: no overint vs kron GL = ", error)
+    error1 = np.linalg.norm(Cx_2d1 - Cx_kron, 'fro')
+    print("  Frobinius norm: Logans GLL vs kron GL = ", error1)
+    error2 = np.linalg.norm(Cx_2d1 - Cx_kron_GLL, 'fro')
+    print(" Frobinius norm: Logans GLL vs kron GLL = ", error2)
+    error3 = np.linalg.norm((Cx_kron - Cx_kron_GLL), 'fro')
+    print("       Frobinius norm: kron vs kron GLL = ", error3)
+
+    # # assume Cx_kron and Cx_kron_GLL already exist
+    # D = abs(Cx_2d1 - Cx_kron_GLL)
+
+    # max_idx = np.unravel_index(np.argmax(D), D.shape)
+    # print("max in D = ", np.max(D), " at ", max_idx)
+    # print("val at max diff = ", Cx_2d1[max_idx])
+    # print("val at max diff = ", Cx_kron_GLL[max_idx])
+
+    # plt.figure(figsize=(6,5))
+    # plt.imshow(D, cmap='viridis', origin='lower',
+    #         vmin=np.min(D), vmax=np.max(D))
+    # plt.title("Difference Heatmap (autoscaled)")
+    # plt.colorbar()
+    # plt.tight_layout()
+    # plt.show()
+
     sys.exit()
     Cy = construct_cy_matrix_2d(N,c[1])
 
