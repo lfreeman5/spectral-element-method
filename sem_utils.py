@@ -1,7 +1,7 @@
 import numpy as np
 from lagrange_utils import create_lagrange_derivative, create_lagrange_poly, construct_solution, create_lagrange_derivative_gll_points
 from gll_utils import gll_pts_wts, integrate_gll, print_matrix
-
+from numpy.polynomial.legendre import leggauss, legder, legval
 
 '''
     A set of utilities related to Operators
@@ -128,6 +128,66 @@ def construct_cx_matrix_2d(N,cx):
                     C_x[i,j,p,q] = gll_wts[j]*gll_wts[i] * ld_vals[p,i] * cx(gll_pts[i], gll_pts[j])
 
     return C_x
+
+def construct_cx_kron_2d(N,cx):
+    '''
+    creates the x-advection tensor using kroneker products.
+    Inputs:
+    N: Polynomial order
+    cx: vector field of x-advection speed, cx=cx(x,y) defined on [-1,1]^2
+
+    NOTE: This does use over integration for dealiasing
+    '''
+    # greate GL points
+    m = int(2.5*N)+1
+    # m = N+1
+
+    x_gl, w_gl = leggauss(m)
+    (gll_pts, gll_wts) = gll_pts_wts(N)
+
+    # create B_hat_m matrix eq. 476
+    B_hat_m = np.diag(w_gl)
+
+    # create B_m matrix eq. 479
+    B_m = np.kron(B_hat_m, B_hat_m)
+
+    # create Cx_m  page 95 of notes
+    Cx_m_diag = np.zeros(m**2)
+    for k in range(m):
+        for l in range(m):
+            i = k + m*l  # check this
+            Cx_m_diag[i] = cx(x_gl[k],x_gl[l])
+    # print(Cx_m_diag)
+    Cx_m = np.diag(Cx_m_diag)
+
+    # make lagrange polys and d_lagrange polys 
+    lagrange_polys = [create_lagrange_poly(i, gll_pts) for i in range(N+1)]
+    lagrange_derivs = [create_lagrange_derivative(i,gll_pts) for i in range(N+1)]
+    # ld_vals = np.array([[lagrange_derivs[i](gll_pts[j])for j in range(N+1)] for i in range(N+1)]) # Evaluation of l_i'(ξ_j) as ld_vals[i,j]
+    
+    # create J_hat eq. 477
+    J_hat = np.zeros((m,N+1))
+    for q in range(N+1):
+        lagrange_q = lagrange_polys[q]
+        for l in range(m):
+            J_hat[l][q] = lagrange_q(x_gl[l])
+
+    # create D_tilde eq. 478
+    D_tilde = np.zeros((m,N+1))
+
+    for p in range(N+1):
+        d_lagrange_p = lagrange_derivs[p]
+        for k in range(m):
+            D_tilde[k][p] = d_lagrange_p(x_gl[k])
+
+    # print(Cx_m)
+    # print(B_m)
+    # print(J_hat)
+    # print(D_tilde)
+    # eq 
+    C_x = np.kron(J_hat.transpose(),J_hat.transpose())@B_m@Cx_m@np.kron(J_hat,D_tilde)
+    # print(C_x)
+    return C_x  
 
 def construct_cy_matrix_2d(N,cy):
     '''
