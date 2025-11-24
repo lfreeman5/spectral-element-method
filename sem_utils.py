@@ -380,7 +380,7 @@ def construct_cx_kron_2d(N,cx):
     return C_x  
 
 
-def construct_cx_kron_2d_GLL(N,cx):
+def construct_cy_kron_2d_GLL(N,cy):
     '''
     creates the x-advection tensor using kroneker products.
     Inputs:
@@ -407,7 +407,7 @@ def construct_cx_kron_2d_GLL(N,cx):
     for k in range(m+1):
         for l in range(m+1):
             i = k + (m+1)*l  # check this
-            Cx_m_diag[i] = cx(fine_pts[k],fine_pts[l])
+            Cx_m_diag[i] = cy(fine_pts[k],fine_pts[l])
     # print(Cx_m_diag)
     Cx_m = np.diag(Cx_m_diag)
 
