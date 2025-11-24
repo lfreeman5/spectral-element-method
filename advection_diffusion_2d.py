@@ -43,6 +43,24 @@ def backward_euler_step(N,Ax,Ay,Cx,Cy,M,f,u_0,BCs,dt):
     u1 = np.linalg.solve(LHS_matrix, RHS_vector)
     return map_1d_to_2d(u1,N)
 
+def bdf_ext_2(N, Ax, Ay, Cx, Cy, M, f, u_0, u_1,BCs,dt):
+    LHS_matrix = map_4d_to_2d(3*M/(2*dt) + Ax + Ay,N)
+    RHS_vector = map_2d_to_1d(f+\
+                            np.tensordot(M/(2*dt), (4*u_1-u_0), axes=([2, 3], [0, 1])) - \
+                            np.tensordot((-Cx-Cy), (2*u_1-u_0), axes=([2, 3], [0, 1])),N)
+    LHS_matrix, RHS_vector = modify_A_b_dirichlet_2D(BCs, LHS_matrix, RHS_vector,N)
+    u2 = np.linalg.solve(LHS_matrix,RHS_vector)
+    return map_1d_to_2d(u2,N)
+
+def bdf_ext_3(N, Ax, Ay, Cx, Cy, M, f, u_0, u_1,u_2,BCs,dt):
+    LHS_matrix = map_4d_to_2d(11*M/(6*dt) + Ax + Ay,N)
+    RHS_vector = map_2d_to_1d(f+\
+                            np.tensordot(M/(6*dt), (18*u_2-9*u_1+2*u_0), axes=([2, 3], [0, 1])) - \
+                            np.tensordot((-Cx-Cy), (3*u_2-3*u_1+u_0), axes=([2, 3], [0, 1])),N)
+    LHS_matrix, RHS_vector = modify_A_b_dirichlet_2D(BCs, LHS_matrix, RHS_vector,N)
+    u2 = np.linalg.solve(LHS_matrix,RHS_vector)
+    return map_1d_to_2d(u2,N)
+
 def transient_solution(f,c,alpha,N,u0,bcs,dt,t_f):
     '''
     Computes the transient solution of the 2D Poisson equation using backward Euler time stepping.
@@ -78,24 +96,44 @@ def transient_solution(f,c,alpha,N,u0,bcs,dt,t_f):
 
     M = construct_m_matrix_2d(N)
     print(f'Complete, beginning timestepping')
+    
+    # # Backward Euler 
+    # for i, t in enumerate(times[:-1]):
+    #     if((i+1)%100==0):
+    #         print(f'Computing step i={i} at t={t}')
+    #     f_N = lambda x,y: f(x,y,t)
+    #     f_arr = construct_load_matrix_2d(N, f_N) # evaluated at next timestep which is t (specific to backward euler)
+    #     U[i+1,:,:] = backward_euler_step(N,Ax,Ay,Cx,Cy,M,f_arr,U[i,:,:],bcs,dt)
 
-    for i, t in enumerate(times[:-1]):
+    # BDF2-EXT2
+    # U[1,:] = u0_arr
+    # for i, t in enumerate(times[:-2]):
+    #     if((i+1)%100==0):
+    #         print(f'BDF/EXT2 Computing step i={i} at t={t}')
+    #     f_N = lambda x,y: f(x,y,t)
+    #     f_arr = construct_load_matrix_2d(N, f_N) # evaluated at next timestep which is t (specific to backward euler)
+    #     U[i+2,:,:] = bdf_ext_2(N,Ax,Ay,Cx,Cy,M,f_arr,U[i,:,:],U[i+1,:,:],bcs,dt)
+
+    # BDF3-EXT3
+    U[1,:] = u0_arr
+    U[2,:] = u0_arr
+    for i, t in enumerate(times[:-3]):
         if((i+1)%100==0):
-            print(f'Computing step i={i} at t={t}')
+            print(f'BDF/EXT3 Computing step i={i} at t={t}')
         f_N = lambda x,y: f(x,y,t)
-        f_arr = construct_load_matrix_2d(N, f_N) # evaluated at next timestep which is t (specific to backward euler)
-        U[i+1,:,:] = backward_euler_step(N,Ax,Ay,Cx,Cy,M,f_arr,U[i,:,:],bcs,dt)
+        f_arr = construct_load_matrix_2d(N, f_N)
+        U[i+3,:,:] = bdf_ext_3(N, Ax, Ay, Cx, Cy, M, f_arr, U[i,:,:], U[i+1,:,:], U[i+2,:,:], bcs, dt)
 
     return U, times
 
 if __name__ == '__main__':
     N=8
     (gll_pts, gll_wts) = gll_pts_wts(N)
-    tf = 2.5
-    dt = 0.002
+    tf = 5.5
+    dt = 0.006
 
     alpha = 0.0001
-    u_0 = lambda x, y: (1 - np.maximum(np.abs(x), np.abs(y)))**2  # Updated initial condition
+    u_0 = lambda x, y: np.exp(-((x-0.25)**2 + (y-0.25)**2) / (2*0.1**2))  # Updated initial condition
     f = lambda x,y,t:0
     bc = lambda xy: 0.0 # Homogenous dirichlet BCs for now
     bcs = [bc,bc,bc,bc]
