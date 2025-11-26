@@ -51,23 +51,38 @@ def animate_solution_2d(U_solution, times, gll_pts, filename, N_pts=100):
             U_plot = U_plot.T
         U_frames[i] = U_plot
 
-    # Set up the figure for 480p resolution
-    fig, ax = plt.subplots(figsize=(6,4), dpi=100)
-    c = ax.pcolormesh(X, Y, U_frames[0], cmap='viridis', shading='auto', vmin=-1, vmax=1)
-    fig.colorbar(c, ax=ax)
+    # Create a 3D surface animation for 480p-ish output
+    from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+    fig = plt.figure(figsize=(6, 4), dpi=100)
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Determine fixed z-limits across all frames so the vertical scale remains constant
+    zmin = float(np.min(U_frames))
+    zmax = float(np.max(U_frames))
+
+    # initial surface: single color (no color gradient)
+    surf = ax.plot_surface(X, Y, U_frames[0], color='C0', linewidth=0, antialiased=True)
     ax.set_xlabel('x')
     ax.set_ylabel('y')
+    ax.set_zlabel('u')
+    ax.set_zlim(zmin, zmax)
     title = ax.set_title(f'Solution at t = {times[0]:.4f}')
 
-    def update(frame):
-        U_plot = U_frames[frame]
-        c.set_array(U_plot.ravel())
-        title.set_text(f'Solution at t = {times[frame]:.4f}')
-        return c, title
+    surf_holder = [surf]
 
-    anim = FuncAnimation(fig, update, frames=num_frames, blit=True)
+    def update(frame):
+        try:
+            surf_holder[0].remove()
+        except Exception:
+            pass
+        surf_new = ax.plot_surface(X, Y, U_frames[frame], color='C0', linewidth=0, antialiased=True)
+        title.set_text(f'Solution at t = {times[frame]:.4f}')
+        ax.set_zlim(zmin, zmax)
+        surf_holder[0] = surf_new
+        return surf_new,
+
+    anim = FuncAnimation(fig, update, frames=num_frames, blit=False)
     print(f"Saving animation to {filename} (this may take a while)...")
-    # Use ffmpeg ultrafast preset for faster saving
     anim.save(filename, writer='ffmpeg', fps=15, bitrate=8000, extra_args=['-preset', 'ultrafast'])
     print("Animation saved.")
     plt.close(fig)

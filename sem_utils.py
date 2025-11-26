@@ -24,17 +24,44 @@ def construct_a_matrix(N): # Only assembled once, so maybe bad performance isn't
                     continue
             L_j_prime = lagrange_derivs[j]
             Lij_prime = lambda x: L_i_prime(x) * L_j_prime(x)
-            A[i, j] = integrate_gll(-1, 1, Lij_prime, N) - L_j_prime(1) * L_i(1) + L_j_prime(-1) * L_i(-1)
+            A[i, j] = integrate_gll(-1, 1, Lij_prime, N) - L_j_prime(1) * L_i(1) + L_j_prime(-1) * L_i(-1) # modify the neumann function so that it d
+            # A[i, j] = integrate_gll(-1, 1, Lij_prime, N)
     return A
 
-def construct_c_matrix(N,M): # Anti-aliasing using M>N quadrature 
+def construct_a_matrix_Neumann(N): # Only assembled once, so maybe bad performance isn't the end of the world
+    # Restricted to [-1.,1.]
+    A = np.zeros((N+1, N+1))
+    (gll_pts, _) = gll_pts_wts(N)
+    lagrange_polys = [create_lagrange_poly(i, gll_pts) for i in range(N+1)]
+    lagrange_derivs = [create_lagrange_derivative_gll_points(i, gll_pts) for i in range(N+1)]
+    for i in range(N+1):
+        L_i_prime = lagrange_derivs[i]
+        L_i = lagrange_polys[i]
+        for j in range(N+1):
+            if((j!=0 and j!=N) and (i!=0 and i!=N)): # Can't assume outside rows/cols are symmetric with non-homogenous Dirichlet BCs 
+                if(A[j,i]!=0.0):
+                    A[i,j]=A[j,i]
+                    continue
+            L_j_prime = lagrange_derivs[j]
+            Lij_prime = lambda x: L_i_prime(x) * L_j_prime(x)
+            # A[i, j] = integrate_gll(-1, 1, Lij_prime, N) - L_j_prime(1) * L_i(1) + L_j_prime(-1) * L_i(-1) # modify the neumann function so that it d
+            A[i, j] = integrate_gll(-1, 1, Lij_prime, N)
+    return A
+
+def construct_c_matrix(N, M, show_progress=False): # Anti-aliasing using M>N quadrature 
     # I'm not sure that I have i,j right here
     C = np.zeros((N+1,N+1)) 
     (gll_pts, _) = gll_pts_wts(N)
     lagrange_polys = [create_lagrange_poly(i, gll_pts) for i in range(N+1)]
     lagrange_derivs = [create_lagrange_derivative(i, gll_pts) for i in range(N+1)]
-    for i in range(N+1):
-        print(f'Creating row {i+1} of C')
+    iterator = range(N+1)
+    if show_progress:
+        try:
+            from tqdm import tqdm
+            iterator = tqdm(range(N+1), desc=f"Creating C rows (N={N})")
+        except Exception:
+            iterator = range(N+1)
+    for i in iterator:
         L_i = lagrange_polys[i]
         for j in range(N+1):
             L_j_prime = lagrange_derivs[j]
@@ -42,10 +69,17 @@ def construct_c_matrix(N,M): # Anti-aliasing using M>N quadrature
             C[i, j] = integrate_gll(-1, 1, Lij_prime, M)
     return C
 
-def construct_b_vector(N,f): # Restricted to x \in [-1,1]
+def construct_b_vector(N, f, show_progress=False): # Restricted to x \in [-1,1]
     b = np.zeros(N+1)
     (gll_pts,_) = gll_pts_wts(N)
-    for i in range(N+1):
+    iterator = range(N+1)
+    if show_progress:
+        try:
+            from tqdm import tqdm
+            iterator = tqdm(range(N+1), desc=f"Building b vector (N={N})")
+        except Exception:
+            iterator = range(N+1)
+    for i in iterator:
         L_i = create_lagrange_poly(i,gll_pts)
         f_L_i = lambda x: L_i(x)*f(x)
         b[i] = integrate_gll(-1, 1, f_L_i, N)
@@ -65,6 +99,22 @@ def modify_A_b_dirichlet(A,b,u_L,u_R): # Used generally on assembled systems.
     b[0]=u_L
     b[-1]=u_R
     return A,b
+
+def modify_A_b_neumann(A, b, deriv_L, deriv_R, enforce_mean=True):
+    """
+    Apply Neumann boundary conditions u'(-1)=deriv_L, u'(1)=deriv_R
+    to the assembled SEM Poisson system.
+    """
+    N = A.shape[0] - 1
+    # Apply Neumann load vector corrections:
+    b[0] -= deriv_L # l_0(-1) = 1
+    b[N] += deriv_R # l_N(1) = 1
+    if enforce_mean:
+        # Enforce the mean-zero constraint for solvability:
+        x, w = gll_pts_wts(N)
+        A[0, :] = w # replace first row with sum(w_i u_i) = 0
+        b[0] = 0.0
+    return A, b
 
 def construct_ax_matrix_2d(N, alpha=1):
     '''

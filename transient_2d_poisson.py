@@ -128,23 +128,42 @@ def animate_solution(U_solution, times, gll_pts, N_pts=100, filename='diffusion_
             U_plot = U_plot.T
         U_frames[i] = U_plot
 
-    fig, ax = plt.subplots(figsize=(8, 6), dpi=150)  # Higher resolution figure
-    c = ax.pcolormesh(X, Y, U_frames[0], cmap='viridis', shading='auto', vmin=-1, vmax=1)
-    fig.colorbar(c, ax=ax)
+    # Create a 3D surface animation: z is the solution magnitude
+    from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 (needed for 3D projection)
+    fig = plt.figure(figsize=(8, 6), dpi=150)
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Determine fixed z-limits across all frames so the vertical scale remains constant
+    zmin = float(np.min(U_frames))
+    zmax = float(np.max(U_frames))
+
+    # initial surface: single color (no color gradient)
+    surf = ax.plot_surface(X, Y, U_frames[0], color='C0', linewidth=0, antialiased=True)
     ax.set_xlabel('x')
     ax.set_ylabel('y')
+    ax.set_zlabel('u')
+    ax.set_zlim(zmin, zmax)
     title = ax.set_title(f'Solution at t = {times[0]:.4f}')
 
-    def update(frame):
-        U_plot = U_frames[frame]
-        c.set_array(U_plot.ravel())
-        title.set_text(f'Solution at t = {times[frame]:.4f}')
-        c.set_clim(vmin=-1, vmax=1)
-        return c, title
+    # store previous surface so we can remove it each frame; keep z-limits fixed
+    surf_holder = [surf]
 
-    anim = FuncAnimation(fig, update, frames=num_frames, blit=True)
+    def update(frame):
+        # remove previous surface
+        try:
+            surf_holder[0].remove()
+        except Exception:
+            pass
+        # plot new surface with fixed z-limits and single color
+        surf_new = ax.plot_surface(X, Y, U_frames[frame], color='C0', linewidth=0, antialiased=True)
+        title.set_text(f'Solution at t = {times[frame]:.4f}')
+        ax.set_zlim(zmin, zmax)
+        # save reference
+        surf_holder[0] = surf_new
+        return surf_new,
+
+    anim = FuncAnimation(fig, update, frames=num_frames, blit=False)
     print(f"Saving animation to {filename} (this may take a while)...")
-    # Use higher bitrate for higher quality
     anim.save(filename, writer='ffmpeg', fps=15, bitrate=8000)
     print("Animation saved.")
     plt.close(fig)
@@ -156,7 +175,9 @@ if __name__ == '__main__':
     dt = 0.0002
 
     u_0 = lambda x,y: np.sin(pi*x)*np.sin(pi*y)
-    f = lambda x,y,t:0
+    f = lambda x,y,t:0 # forcing function
+    # print the forcing function in the terminal
+    print("Forcing function f(x,y,t) = ", f)
     bc = lambda xy: 0.0 # Homogenous dirichlet BCs for now
     bcs = [bc,bc,bc,bc]
 

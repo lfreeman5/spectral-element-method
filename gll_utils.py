@@ -19,13 +19,13 @@ def gll_pts_wts(N):
     Returns tuple:
         (pts, wts) where both are 1x(N+1) numpy arrays  
     '''
-    from numpy.polynomial.legendre import legder, legroots, legval
+    from numpy.polynomial.legendre import legder, legroots, legval # legder gets derivative coefficients, legroots gets roots of polynomial with given coeffs, legval evaluates polynomial at points
     if N < 1:
         raise ValueError("Order N must be >= 1")
-    c=np.zeros(N+1)
-    c[-1]=1
-    dC = legder(c)
-    pts = np.concatenate(([-1.],legroots(dC),[1.]))
+    c=np.zeros(N+1) # coefficients of P_N, initially there are N+1 coefficients all 0
+    c[-1]=1 # set coefficient of x^N to 1 because we want P_N
+    dC = legder(c) # coefficients of P'_N. legder takes the derivative of the polynomial whose coefficients are in c
+    pts = np.concatenate(([-1.],legroots(dC),[1.])) # GLL points are roots of P'_{N} plus -1 and 1
     wts = 2.0 / (N*(N+1) * legval(pts, c)**2)
     return pts, wts
 
