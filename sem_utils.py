@@ -25,7 +25,6 @@ def construct_a_matrix(N): # Only assembled once, so maybe bad performance isn't
             L_j_prime = lagrange_derivs[j]
             Lij_prime = lambda x: L_i_prime(x) * L_j_prime(x)
             A[i, j] = integrate_gll(-1, 1, Lij_prime, N) - L_j_prime(1) * L_i(1) + L_j_prime(-1) * L_i(-1) # modify the neumann function so that it d
-            # A[i, j] = integrate_gll(-1, 1, Lij_prime, N)
     return A
 
 def construct_a_matrix_Neumann(N): # Only assembled once, so maybe bad performance isn't the end of the world
@@ -36,7 +35,6 @@ def construct_a_matrix_Neumann(N): # Only assembled once, so maybe bad performan
     lagrange_derivs = [create_lagrange_derivative_gll_points(i, gll_pts) for i in range(N+1)]
     for i in range(N+1):
         L_i_prime = lagrange_derivs[i]
-        L_i = lagrange_polys[i]
         for j in range(N+1):
             if((j!=0 and j!=N) and (i!=0 and i!=N)): # Can't assume outside rows/cols are symmetric with non-homogenous Dirichlet BCs 
                 if(A[j,i]!=0.0):
@@ -44,7 +42,6 @@ def construct_a_matrix_Neumann(N): # Only assembled once, so maybe bad performan
                     continue
             L_j_prime = lagrange_derivs[j]
             Lij_prime = lambda x: L_i_prime(x) * L_j_prime(x)
-            # A[i, j] = integrate_gll(-1, 1, Lij_prime, N) - L_j_prime(1) * L_i(1) + L_j_prime(-1) * L_i(-1) # modify the neumann function so that it d
             A[i, j] = integrate_gll(-1, 1, Lij_prime, N)
     return A
 

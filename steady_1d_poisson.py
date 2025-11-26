@@ -208,7 +208,7 @@ def compare_exact_approx(exact, approx):
     plt.show()
 
 if __name__ == '__main__':
-    N=5
+    N=15
     # x = sp.Symbol('x')
     # u_exact = sp.sin(1/(x+1.1)) # Exact solution
     # f = -sp.diff(u_exact,x,2) # Compute corresponding forcing function
