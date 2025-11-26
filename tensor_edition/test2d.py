@@ -23,16 +23,16 @@ if __name__ == "__main__":
     U[0,:,:] = np.exp(-((X - x0)**2 + (Y - y0)**2) / (2 * sigma**2))
 
     # Deal with advection field
-    M_overintegrated = 15
+    M_over = 15 # Overintegrated velocity field
     cx = lambda x,y: -y
     cy = lambda x,y: x
-    mpts, _ = gll_pts_wts(M_overintegrated)
-    CxMM, CyMM = np.zeros((M_overintegrated+1,M_overintegrated+1)), np.zeros((M_overintegrated+1,M_overintegrated+1))
-    for i in range(M_overintegrated+1):
-        for j in range(M_overintegrated+1):
+    mpts, _ = gll_pts_wts(M_over)
+    CxMM, CyMM = np.zeros((M_over+1,M_over+1)), np.zeros((M_over+1,M_over+1))
+    for i in range(M_over+1):
+        for j in range(M_over+1):
             CxMM[i,j] = cx(mpts[i],mpts[j])
             CyMM[i,j] = cy(mpts[i],mpts[j])
-    C = create_C(N,M_overintegrated,CxMM,CyMM)
+    C = create_C(N,M_over,map_2d_to_1d(CxMM,M_over),map_2d_to_1d(CyMM,M_over))
 
     for n in range(Nt-1):
         print(f'Calculating iter {n+1}, previous max: {np.max(U[n,:,:])}')

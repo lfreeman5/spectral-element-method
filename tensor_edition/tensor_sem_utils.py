@@ -38,21 +38,19 @@ def create_mass_stiffness_2d(N):
     return M,A     
 
 
-def create_C(N,M,CxM,CyM):
+def create_C(N,M,CxM2,CyM2):
     '''
     Creates the 2D advection operator C
     N - polynomial order of the spectral element
     M - polynomial order for overintegration
-    CxM and CyM are MxM, either evaluating C at M-gll pts either directly or by interpolation (as would be the case for Navier Stokes)
+    CxM2 and CyM2 are M^2x1, either evaluating C at M-gll pts either directly or by interpolation (as would be the case for Navier Stokes)
     '''
     BhatN, DhatN = create_Bhat_Dhat(N)
     BhatM, _ = create_Bhat_Dhat(M)
     JhatM = create_Jhat(N,M)
     DtildeM = create_Dtilde(N,M)
-    CxM2 = map_MM_to_M2M2(CxM,M) # For NS, the interpolated vector may already be M2 - so just do np.diag(CxM) instead
-    CyM2 = map_MM_to_M2M2(CyM,M)
-    Cx = (np.kron(JhatM.T,JhatM.T))@(np.kron(BhatM, BhatM))@CxM2@(np.kron(JhatM,DtildeM))
-    Cy = (np.kron(JhatM.T,JhatM.T))@(np.kron(BhatM, BhatM))@CyM2@(np.kron(DtildeM,JhatM))
+    Cx = (np.kron(JhatM.T,JhatM.T))@(np.kron(BhatM, BhatM))@np.diag(CxM2)@(np.kron(JhatM,DtildeM))
+    Cy = (np.kron(JhatM.T,JhatM.T))@(np.kron(BhatM, BhatM))@np.diag(CyM2)@(np.kron(DtildeM,JhatM))
     return Cx + Cy
 
 def map_2d_to_1d(arr, N):
@@ -60,7 +58,7 @@ def map_2d_to_1d(arr, N):
     Maps a NxN array to N^2x1 column vector
     Equivalent to U = u.reshape(-1,order='F')
     '''
-    oneD = np.zeros((N+1)*(N+1))
+    oneD = np.zeros(((N+1)*(N+1)))
     for i in range(N+1):
         for j in range(N+1):
             k=i+(N+1)*j
