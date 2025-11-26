@@ -1,0 +1,9 @@
+
+Here you will find code to solve plane Poiseuille flow in 2D.
+
+poiseuille.m + dependencies
+
+You will need to supply the exact solution in order to check
+correctness, etc.
+
+

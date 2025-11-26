@@ -1,0 +1,19 @@
+
+Run ns.m in octave
+
+It uses Jacobi (diagonal) PCG for the elliptic substeps.
+
+It supports nontrivial null-space for the pressure and also
+inhomogeneous Dirichlet conditions.
+
+It is _slow_....   
+
+   Possible Reasons:
+
+   -- Need to profile the matlab/octave code
+   -- Need multilevel preconditioner for pressure.
+      (Why so many pressure iterations for such a small problem??)
+
+
+
+

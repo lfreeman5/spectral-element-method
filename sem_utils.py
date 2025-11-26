@@ -1,7 +1,7 @@
 import numpy as np
 from lagrange_utils import create_lagrange_derivative, create_lagrange_poly, construct_solution, create_lagrange_derivative_gll_points
 from gll_utils import gll_pts_wts, integrate_gll, print_matrix
-
+from numpy.polynomial.legendre import leggauss, legder, legval
 
 '''
     A set of utilities related to Operators
@@ -178,6 +178,7 @@ def construct_cx_matrix_2d(N,cx):
                     C_x[i,j,p,q] = gll_wts[j]*gll_wts[i] * ld_vals[p,i] * cx(gll_pts[i], gll_pts[j])
 
     return C_x
+
 
 def construct_cy_matrix_2d(N,cy):
     '''
@@ -366,3 +367,276 @@ def modify_A_b_dirichlet_2D(bcs,A,b,N):
         A[k,k] = 1.0
 
     return A, b
+
+
+
+############################# Nate's Kronecker functions ##############################
+
+
+def construct_cx_kron_2d(N,cx):
+    '''
+    creates the x-advection tensor using kroneker products.
+    Inputs:
+    N: Polynomial order
+    cx: vector field of x-advection speed, cx=cx(x,y) defined on [-1,1]^2
+
+    NOTE: This does use GL over integration for dealiasing
+    '''
+    # greate GL points
+    m = int(1.5*N) +1
+    # m = N+1
+
+    x_gl, w_gl = leggauss(m)
+    (gll_pts, gll_wts) = gll_pts_wts(N)
+
+    # create B_hat_m matrix eq. 476
+    B_hat_m = np.diag(w_gl)
+
+    # create B_m matrix eq. 479
+    B_m = np.kron(B_hat_m, B_hat_m)
+
+    # create Cx_m  page 95 of notes
+    Cx_m_diag = np.zeros(m**2)
+    for k in range(m):
+        for l in range(m):
+            i = k + m*l  # check this
+            Cx_m_diag[i] = cx(x_gl[k],x_gl[l])
+    # print(Cx_m_diag)
+    Cx_m = np.diag(Cx_m_diag)
+
+    # make lagrange polys and d_lagrange polys 
+    lagrange_polys = [create_lagrange_poly(i, gll_pts) for i in range(N+1)]
+    lagrange_derivs = [create_lagrange_derivative(i,gll_pts) for i in range(N+1)]
+    # ld_vals = np.array([[lagrange_derivs[i](gll_pts[j])for j in range(N+1)] for i in range(N+1)]) # Evaluation of l_i'(ξ_j) as ld_vals[i,j]
+    
+    # create J_hat eq. 477
+    J_hat = np.zeros((m,N+1))
+    for q in range(N+1):
+        lagrange_q = lagrange_polys[q]
+        for l in range(m):
+            J_hat[l][q] = lagrange_q(x_gl[l])
+
+    # create D_tilde eq. 478
+    D_tilde = np.zeros((m,N+1))
+
+    for p in range(N+1):
+        d_lagrange_p = lagrange_derivs[p]
+        for k in range(m):
+            D_tilde[k][p] = d_lagrange_p(x_gl[k])
+
+    # print(Cx_m)
+    # print(B_m)
+    # print(J_hat)
+    # print(D_tilde)
+    # eq 480
+    C_x = np.kron(J_hat.transpose(),J_hat.transpose())@B_m@Cx_m@np.kron(J_hat,D_tilde)
+    # print(C_x)
+    return C_x  
+
+def construct_cy_kron_2d_GLL(N,cx):
+    '''
+    creates the x-advection tensor using kroneker products.
+    Inputs:
+    N: Polynomial order
+    cx: vector field of x-advection speed, cx=cx(x,y) defined on [-1,1]^2
+
+    NOTE: This does use GLL over integration for dealiasing
+    '''
+    # greate GL points
+    m = int(1.5*N) +1
+    # m = N+1
+
+    (coarse_pts, coarse_wts) = gll_pts_wts(N)
+    (fine_pts, fine_wts) = gll_pts_wts(m)
+
+    # create B_hat_m matrix eq. 476
+    B_hat_m = np.diag(fine_wts)
+
+    # create B_m matrix eq. 479
+    B_m = np.kron(B_hat_m, B_hat_m)
+
+    # create Cx_m  page 95 of notes
+    Cx_m_diag = np.zeros((m+1)**2)
+    for k in range(m+1):
+        for l in range(m+1):
+            i = k + (m+1)*l  # check this
+            Cx_m_diag[i] = cx(fine_pts[k],fine_pts[l])
+    # print(Cx_m_diag)
+    Cx_m = np.diag(Cx_m_diag)
+
+    # make lagrange polys and d_lagrange polys 
+    lagrange_polys = [create_lagrange_poly(i, coarse_pts) for i in range(N+1)]
+    lagrange_derivs = [create_lagrange_derivative(i,coarse_pts) for i in range(N+1)]
+    # ld_vals = np.array([[lagrange_derivs[i](gll_pts[j])for j in range(N+1)] for i in range(N+1)]) # Evaluation of l_i'(ξ_j) as ld_vals[i,j]
+    
+    # create J_hat eq. 477
+    J_hat = np.zeros((m+1,N+1))
+    for q in range(N+1):
+        for l in range(m+1):
+            J_hat[l,q] = lagrange_polys[q](fine_pts[l])
+
+    # create D_tilde eq. 478
+    D_tilde = np.zeros((m+1,N+1))
+
+    for p in range(N+1):
+        for k in range(m+1):
+            D_tilde[k,p] = lagrange_derivs[p](fine_pts[k])
+
+    # print(Cx_m)
+    # print(B_m)
+    # print(J_hat)
+    # print(D_tilde)
+
+    # eq 480
+    C_x = np.kron(J_hat.transpose(),J_hat.transpose())@B_m@Cx_m@np.kron(J_hat, D_tilde)
+    # print(C_x)
+    return C_x 
+
+
+
+def construct_cy_kron_2d_GLL(N,cy):
+    '''
+    creates the x-advection tensor using kroneker products.
+    Inputs:
+    N: Polynomial order
+    cx: vector field of x-advection speed, cx=cx(x,y) defined on [-1,1]^2
+
+    NOTE: This does use GLL over integration for dealiasing
+    '''
+    # greate GL points
+    m = int(1.5*N) +1
+    # m = N+1
+
+    (coarse_pts, coarse_wts) = gll_pts_wts(N)
+    (fine_pts, fine_wts) = gll_pts_wts(m)
+
+    # create B_hat_m matrix eq. 476
+    B_hat_m = np.diag(fine_wts)
+
+    # create B_m matrix eq. 479
+    B_m = np.kron(B_hat_m, B_hat_m)
+
+    # create Cx_m  page 95 of notes
+    Cy_m_diag = np.zeros((m+1)**2)
+    for k in range(m+1):
+        for l in range(m+1):
+            i = k + (m+1)*l  # check this
+            Cy_m_diag[i] = cy(fine_pts[k],fine_pts[l])
+    # print(Cx_m_diag)
+    Cy_m = np.diag(Cy_m_diag)
+
+    # make lagrange polys and d_lagrange polys 
+    lagrange_polys = [create_lagrange_poly(i, coarse_pts) for i in range(N+1)]
+    lagrange_derivs = [create_lagrange_derivative(i,coarse_pts) for i in range(N+1)]
+    # ld_vals = np.array([[lagrange_derivs[i](gll_pts[j])for j in range(N+1)] for i in range(N+1)]) # Evaluation of l_i'(ξ_j) as ld_vals[i,j]
+    
+    # create J_hat eq. 477
+    J_hat = np.zeros((m+1,N+1))
+    for q in range(N+1):
+        for l in range(m+1):
+            J_hat[l,q] = lagrange_polys[q](fine_pts[l])
+
+    # create D_tilde eq. 478
+    D_tilde = np.zeros((m+1,N+1))
+
+    for p in range(N+1):
+        for k in range(m+1):
+            D_tilde[k,p] = lagrange_derivs[p](fine_pts[k])
+
+    # print(Cx_m)
+    # print(B_m)
+    # print(J_hat)
+    # print(D_tilde)
+
+    # eq 481
+    C_y = np.kron(J_hat.transpose(),J_hat.transpose())@B_m@Cy_m@np.kron(D_tilde,J_hat)
+    # print(C_x)
+    return C_y  
+
+def construct_kron_GLL_interpolation_matrices(N):
+
+    # greate GL points
+    m = int(1.5*N) +1
+    # m = N+1
+
+    (coarse_pts, coarse_wts) = gll_pts_wts(N)
+    (fine_pts, fine_wts) = gll_pts_wts(m)
+
+    # create B_hat_m matrix eq. 476
+    B_hat_m = np.diag(fine_wts)
+
+    # create B_m matrix eq. 479
+    B_m = np.kron(B_hat_m, B_hat_m)
+
+    # make lagrange polys and d_lagrange polys 
+    lagrange_polys = [create_lagrange_poly(i, coarse_pts) for i in range(N+1)]
+    lagrange_derivs = [create_lagrange_derivative(i,coarse_pts) for i in range(N+1)]
+    # ld_vals = np.array([[lagrange_derivs[i](gll_pts[j])for j in range(N+1)] for i in range(N+1)]) # Evaluation of l_i'(ξ_j) as ld_vals[i,j]
+    
+    # create J_hat eq. 477
+    J_hat = np.zeros((m+1,N+1))
+    for q in range(N+1):
+        for l in range(m+1):
+            J_hat[l,q] = lagrange_polys[q](fine_pts[l])
+
+    # create D_tilde eq. 478
+    D_tilde = np.zeros((m+1,N+1))
+
+    for p in range(N+1):
+        for k in range(m+1):
+            D_tilde[k,p] = lagrange_derivs[p](fine_pts[k])
+
+    return B_m, J_hat, D_tilde
+
+
+def nonlinear_advection_at_previous_time(N, m, ux_coefs, uy_coefs, B_m, J_hat, D_tilde):       
+    
+    # notes eq 222
+    Cx_field = np.kron(J_hat,J_hat)@ux_coefs 
+    Cy_field = np.kron(J_hat,J_hat)@uy_coefs 
+
+    
+    Cx_m = np.diag(Cx_field)
+    Cy_m = np.diag(Cy_field)
+
+    # notes eq 489
+    Cx = np.kron(J_hat.transpose(),J_hat.transpose())@B_m@Cx_m@np.kron(J_hat, D_tilde)
+    # notes eq 490
+    Cy = np.kron(J_hat.transpose(),J_hat.transpose())@B_m@Cy_m@np.kron(D_tilde,J_hat)
+    # maybe a faster way in eq. 491
+    
+    C = Cx + Cy
+    Cv = np.column_stack(C@ux_coefs, C@uy_coefs)
+
+    return Cv
+
+
+def nonlinear_advection_at_previous_time_textbook(N, ux_coefs, uy_coefs, coarse_wts, B_N, J_hat_N_N, D_tilde_N_N):    
+
+    v_underbar = np.kron(J_hat_N_N, J_hat_N_N)@ux_coefs
+    
+    
+    # textbook page 174 (page 202 of pdf)
+    # M_hat = np.diag(coarse_wts)
+    # textbook eq 4.3.17
+    # M = np.kron(M_hat, M_hat)
+
+    # or 
+    M = B_N
+
+    # textbook eq. 2.4.9
+    Dhat = D_tilde_N_N # pretty sure this D_tilde is equivalent
+    eye = np.identity(N)
+
+    # textbook above 6.4.9
+    D1 = np.kron(eye, Dhat)
+    D2 = np.kron(Dhat, eye)
+
+    # textbook page 305 (page 333 of pdf)
+    V1 = np.diag(ux_coefs)
+    V2 = np.diag(uy_coefs)
+
+    # textbook eq 6.4.10
+    Cv = M@(V1@D1 + V2&D2)&v_underbar
+
+    return Cv
