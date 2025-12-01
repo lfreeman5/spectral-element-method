@@ -1,6 +1,7 @@
 import numpy as np
 from gll_utils import gll_pts_wts
 from lagrange_utils import create_lagrange_derivative, create_lagrange_poly
+from numpy.polynomial.legendre import leggauss, legder, legval
 
 def create_Bhat_Dhat(N):    
     pts, wts = gll_pts_wts(N)
@@ -110,3 +111,82 @@ def modify_lhs_rhs_dirichlet(LHS,RHS,N,u_dirichlet):
         RHS[kT] = u_dirichlet
 
     return LHS,RHS
+
+
+def nonlinear_advection_at_previous_time(N, m, ux_coefs, uy_coefs):      
+
+    J_hat = create_Jhat(N,m) 
+    B_hat_m, D_hat = create_Bhat_Dhat(N)
+    D_tilde = create_Dtilde(N,m)
+    B_m = np.kron(B_hat_m, B_hat_m)
+    
+    # notes eq 222
+    Cx_field = np.kron(J_hat,J_hat)@ux_coefs 
+    Cy_field = np.kron(J_hat,J_hat)@uy_coefs 
+
+    
+    Cx_m = np.diag(Cx_field)
+    Cy_m = np.diag(Cy_field)
+
+    # notes eq 489
+    Cx = np.kron(J_hat.transpose(),J_hat.transpose())@B_m@Cx_m@np.kron(J_hat, D_tilde)
+    # notes eq 490
+    Cy = np.kron(J_hat.transpose(),J_hat.transpose())@B_m@Cy_m@np.kron(D_tilde,J_hat)
+    # maybe a faster way in eq. 491
+    
+    C = Cx + Cy
+    Cvx = C@ux_coefs
+    Cvy = C@uy_coefs
+    # Cv = np.vstack((C@ux_coefs, C@uy_coefs))
+
+    print("Cvx = ", np.shape(Cvx))
+    print("Cvy = ", np.shape(Cvy))
+
+    return Cvx, Cvy
+
+
+def nonlinear_advection_at_previous_time_textbook(N, ux_coefs, uy_coefs):    
+
+    J_hat_N_N = create_Jhat(N,N) 
+    B_hat_N, D_hat = create_Bhat_Dhat(N)
+    D_tilde_N_N = create_Dtilde(N,N)
+    B_N = np.kron(B_hat_N, B_hat_N)
+
+
+    JJ = np.kron(J_hat_N_N, J_hat_N_N)
+    v_underbarx = np.kron(J_hat_N_N, J_hat_N_N)@ux_coefs
+    v_underbary = np.kron(J_hat_N_N, J_hat_N_N)@uy_coefs
+    
+    
+    # textbook page 174 (page 202 of pdf)
+    # M_hat = np.diag(coarse_wts)
+    # textbook eq 4.3.17
+    # M = np.kron(M_hat, M_hat)
+
+    # or 
+    M = B_N
+
+    # textbook eq. 2.4.9
+    Dhat = D_tilde_N_N # pretty sure this D_tilde is equivalent
+    eye = np.identity(N+1)
+
+    # textbook above 6.4.9
+    D1 = np.kron(eye, Dhat)
+    D2 = np.kron(Dhat, eye)
+
+    # textbook page 305 (page 333 of pdf)
+    V1 = np.diag(ux_coefs)
+    V2 = np.diag(uy_coefs)
+
+    # textbook eq 6.4.10
+    Cvx = M@(V1@D1 + V2@D2)@v_underbarx
+    Cvy = M@(V1@D1 + V2@D2)@v_underbary
+
+    # Cv = np.vstack((Cvx, Cvy))
+    # print("Cv = ", np.shape(Cv))
+
+    print("Cvx = ", np.shape(Cvx))
+    print("Cvy = ", np.shape(Cvy))
+
+
+    return Cvx, Cvy
