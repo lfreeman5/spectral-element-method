@@ -126,14 +126,12 @@ def construct_ax_matrix_2d(N, alpha=1):
     lagrange_derivs = [create_lagrange_derivative(i,gll_pts) for i in range(N+1)]
     ld_vals = [[lagrange_derivs[i](gll_pts[j])for j in range(N+1)] for i in range(N+1)] # Evaluation of l_i'(xi_j)
     ld_vals = np.array(ld_vals)
-
     for j in range(N+1):
         for q in range(N+1):
             if(q!=j): continue
             for i in range(N+1):
                 for p in range(N+1):
                     A_x[i,j,p,q] = gll_wts[j]*np.sum(ld_vals[i,:]*ld_vals[p,:]*gll_wts)
-
     return alpha*A_x
 
 def construct_ay_matrix_2d(N, alpha=1):
@@ -145,14 +143,12 @@ def construct_ay_matrix_2d(N, alpha=1):
     lagrange_derivs = [create_lagrange_derivative(i,gll_pts) for i in range(N+1)]
     ld_vals = [[lagrange_derivs[i](gll_pts[j])for j in range(N+1)] for i in range(N+1)] # Evaluation of l_i'(ξ_j)
     ld_vals = np.array(ld_vals)
-
     for i in range(N+1):
         for p in range(N+1):
             if(p!=i): continue
             for j in range(N+1):
                 for q in range(N+1):
                     A_y[i,j,p,q] = gll_wts[i]*np.sum(ld_vals[j,:]*ld_vals[q,:]*gll_wts)
-
     return alpha*A_y
 
 def construct_cx_matrix_2d(N,cx):

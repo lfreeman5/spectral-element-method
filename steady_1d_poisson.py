@@ -133,6 +133,7 @@
 #     plt.title(f"$\\dfrac{{d^2 u}}{{dx^2}} = $f(x)$ = {latex_f_rounded}$")
 #     plt.savefig('steady_1d_poisson_solution.svg', bbox_inches='tight')
 
+# 1D steady Poisson solver using Spectral Element Method
 import numpy as np
 import matplotlib.pyplot as plt
 from lagrange_utils import create_lagrange_derivative, create_lagrange_poly, construct_solution, create_lagrange_derivative_gll_points
