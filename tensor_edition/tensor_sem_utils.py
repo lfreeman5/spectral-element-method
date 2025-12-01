@@ -190,3 +190,34 @@ def nonlinear_advection_at_previous_time_textbook(N, ux_coefs, uy_coefs):
 
 
     return Cvx, Cvy
+
+
+def AB_coefs(k):
+    '''
+    k-th order Adams Bashforth coefficients, 
+    returns an array of length k
+    '''
+    # textbook table 3.2.1
+    b_k_j = [np.asarray([1.0]), np.asarray([(3/2), -(1/2)]), np.asarray([(23/12), -(16/12), (5/12)]), np.asarray([(55/24), -(59/24), (37/24), -(9/24)])]
+    
+    # k-1 because of python zero based indexing
+    return b_k_j[k-1]
+
+def BDFk_coefs(k):
+    '''
+    k-th order BDF coefficients, 
+    returns the b0 value for that k 
+    and beta (k-j) array of length k
+    '''
+
+    # textbook table 3.2.3
+    b_k_0 = np.asarray([1., (2/3) , (6/11) , (12/25)])
+    a_k_j = [np.asarray([1]),   np.asarray([(4/3), -(1/3)]),    np.asarray([(18/11), -(9/11), (2/11)]), np.asarray([(48/25), -(36/25), (16/25), -(3/25)])]
+
+    # textbook eq 6.2.13
+    beta_k         = 1/b_k_0
+    beta_k_minus_j = [-a_k_j[0]/b_k_0[0],  -a_k_j[1]/b_k_0[1],    -a_k_j[2]/b_k_0[2],     -a_k_j[3]/b_k_0[3]]
+
+    # k-1 because of python zero based indexing
+    return beta_k[k-1], beta_k_minus_j[k-1] 
+
