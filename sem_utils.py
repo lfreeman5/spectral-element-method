@@ -361,11 +361,7 @@ def modify_A_b_dirichlet_2D(bcs,A,b,N):
 
     return A, b
 
-
-
 ############################# Nate's Kronecker functions ##############################
-
-
 def construct_cx_kron_2d(N,cx):
     '''
     creates the x-advection tensor using kroneker products.
@@ -485,8 +481,6 @@ def construct_cy_kron_2d_GLL(N,cx):
     # print(C_x)
     return C_x 
 
-
-
 def construct_cy_kron_2d_GLL(N,cy):
     '''
     creates the x-advection tensor using kroneker products.
@@ -581,55 +575,3 @@ def construct_kron_GLL_interpolation_matrices(N):
 
     return B_m, J_hat, D_tilde
 
-
-def nonlinear_advection_at_previous_time(N, m, ux_coefs, uy_coefs, B_m, J_hat, D_tilde):       
-    
-    # notes eq 222
-    Cx_field = np.kron(J_hat,J_hat)@ux_coefs 
-    Cy_field = np.kron(J_hat,J_hat)@uy_coefs 
-
-    
-    Cx_m = np.diag(Cx_field)
-    Cy_m = np.diag(Cy_field)
-
-    # notes eq 489
-    Cx = np.kron(J_hat.transpose(),J_hat.transpose())@B_m@Cx_m@np.kron(J_hat, D_tilde)
-    # notes eq 490
-    Cy = np.kron(J_hat.transpose(),J_hat.transpose())@B_m@Cy_m@np.kron(D_tilde,J_hat)
-    # maybe a faster way in eq. 491
-    
-    C = Cx + Cy
-    Cv = np.column_stack(C@ux_coefs, C@uy_coefs)
-
-    return Cv
-
-
-def nonlinear_advection_at_previous_time_textbook(N, ux_coefs, uy_coefs, coarse_wts, B_N, J_hat_N_N, D_tilde_N_N):    
-
-    v_underbar = np.kron(J_hat_N_N, J_hat_N_N)@ux_coefs
-    
-    
-    # textbook page 174 (page 202 of pdf)
-    # M_hat = np.diag(coarse_wts)
-    # textbook eq 4.3.17
-    # M = np.kron(M_hat, M_hat)
-
-    # or 
-    M = B_N
-
-    # textbook eq. 2.4.9
-    Dhat = D_tilde_N_N # pretty sure this D_tilde is equivalent
-    eye = np.identity(N)
-
-    # textbook above 6.4.9
-    D1 = np.kron(eye, Dhat)
-    D2 = np.kron(Dhat, eye)
-
-    # textbook page 305 (page 333 of pdf)
-    V1 = np.diag(ux_coefs)
-    V2 = np.diag(uy_coefs)
-
-    # textbook eq 6.4.10
-    Cv = M@(V1@D1 + V2&D2)&v_underbar
-
-    return Cv
