@@ -86,3 +86,29 @@ def animate_solution_2d(U_solution, times, gll_pts, filename, N_pts=100):
     anim.save(filename, writer='ffmpeg', fps=15, bitrate=8000, extra_args=['-preset', 'ultrafast'])
     print("Animation saved.")
     plt.close(fig)
+
+
+
+def plot_ns_solution_2d(u_solution, v_solution, times, gll_pts, t, N_pts=50):
+    """
+    THIS NEEDS TO BE UPDATED FOR A u,v VECTOR FIELD
+    Plots the solution at a given time t as a color plot.
+    """
+    t_idx = np.argmin(np.abs(times - t))
+    u_func = construct_solution_2d_fast(U_solution[t_idx, :, :], gll_pts)
+    
+    x = np.linspace(-1, 1, N_pts)
+    y = np.linspace(-1, 1, N_pts)
+    X, Y = np.meshgrid(x, y)
+    # Pass 1D arrays to u_func, then transpose for plotting if needed
+    U_plot = u_func(x, y)
+    if U_plot.shape != X.shape:
+        U_plot = U_plot.T  # Ensure shape matches meshgrid
+
+    fig, ax = plt.subplots()
+    c = ax.pcolormesh(X, Y, U_plot, cmap='viridis', shading='auto')
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_title(f'Solution at t = {times[t_idx]:.2f}')
+    fig.colorbar(c, ax=ax)
+    plt.show()
