@@ -7,6 +7,7 @@ if __name__ == "__main__":
     M = 10
     Npts, _ = gll_pts_wts(N)
 
+
     ux_coefs = np.random.random((N+1)*(N+1))
     uy_coefs = np.random.random((N+1)*(N+1))
     # print("ux_coefs = ", ux_coefs)

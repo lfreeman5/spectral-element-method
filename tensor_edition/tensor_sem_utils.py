@@ -112,38 +112,34 @@ def modify_lhs_rhs_dirichlet(LHS,RHS,N,u_dirichlet):
     return LHS,RHS
 
 
-def nonlinear_advection_at_previous_time(N, m, ux_coefs, uy_coefs):      
+def nonlinear_advection_at_previous_time(N, M, ux_coefs, uy_coefs):      
 
-    J_hat = create_Jhat(N,m) 
-    B_hat_m, D_hat = create_Bhat_Dhat(N)
-    D_tilde = create_Dtilde(N,m)
-    B_m = np.kron(B_hat_m, B_hat_m)
+    J_hat = create_Jhat(N,M) 
+    B_hat_M, D_hat = create_Bhat_Dhat(M)
+    D_tilde = create_Dtilde(N,M)
+    B_M = np.kron(B_hat_M, B_hat_M)
     
     # notes eq 222
     Cx_field = np.kron(J_hat,J_hat)@ux_coefs 
     Cy_field = np.kron(J_hat,J_hat)@uy_coefs 
 
     
-    Cx_m = np.diag(Cx_field)
-    Cy_m = np.diag(Cy_field)
+    Cx_M = np.diag(Cx_field)
+    Cy_M = np.diag(Cy_field)
 
     # notes eq 489
-    Cx = np.kron(J_hat.transpose(),J_hat.transpose())@B_m@Cx_m@np.kron(J_hat, D_tilde)
+    Cx = np.kron(J_hat.transpose(),J_hat.transpose())@B_M@Cx_M@np.kron(J_hat, D_tilde)
     # notes eq 490
-    Cy = np.kron(J_hat.transpose(),J_hat.transpose())@B_m@Cy_m@np.kron(D_tilde,J_hat)
+    Cy = np.kron(J_hat.transpose(),J_hat.transpose())@B_M@Cy_M@np.kron(D_tilde,J_hat)
     # maybe a faster way in eq. 491
     
     C = Cx + Cy
     Cvx = C@ux_coefs
     Cvy = C@uy_coefs
-    # Cv = np.vstack((C@ux_coefs, C@uy_coefs))
-
-    print("Cvx = ", np.shape(Cvx))
-    print("Cvy = ", np.shape(Cvy))
 
     return Cvx, Cvy
 
-
+# unused
 def nonlinear_advection_at_previous_time_textbook(N, ux_coefs, uy_coefs):    
 
     J_hat_N_N = create_Jhat(N,N) 
@@ -181,11 +177,6 @@ def nonlinear_advection_at_previous_time_textbook(N, ux_coefs, uy_coefs):
     Cvx = M@(V1@D1 + V2@D2)@v_underbarx
     Cvy = M@(V1@D1 + V2@D2)@v_underbary
 
-    # Cv = np.vstack((Cvx, Cvy))
-    # print("Cv = ", np.shape(Cv))
-
-    print("Cvx = ", np.shape(Cvx))
-    print("Cvy = ", np.shape(Cvy))
 
 
     return Cvx, Cvy
