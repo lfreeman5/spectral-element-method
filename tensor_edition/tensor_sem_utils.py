@@ -109,7 +109,6 @@ def modify_lhs_rhs_dirichlet(LHS,RHS,N,u_dirichlet):
         LHS[kT, kT] = 1.
         RHS[kB] = u_dirichlet
         RHS[kT] = u_dirichlet
-
     return LHS,RHS
 
 
@@ -208,3 +207,142 @@ def BDFk_coefs(k):
     return beta_k[k-1], beta_k_minus_j[k-1] 
 
 
+def construct_neumann_rhs_2d(neumann_funcs, N, alpha, pts=None, wts=None):
+    """
+    Assemble Neumann RHS contributions on reference element [-1,1]^2.
+
+    Arguments:
+        neumann_funcs : dict with keys 'left','right','bottom','top'
+                        values are callables q(x,y) giving the normal derivative
+                        on that face, or None if not Neumann on that face.
+                        q must return ∂n u (n is outward normal).
+        N             : polynomial order (N -> N+1 GLL points)
+        alpha         : diffusion coefficient (multiplies the Neumann term)
+        pts, wts      : optional arrays of GLL pts and weights; if None they are computed
+    Returns:
+        b2d : ndarray shape (N+1,N+1) of contributions that should be added to the
+              load vector (before mapping to 1D).
+    """
+    if pts is None or wts is None:
+        pts, wts = gll_pts_wts(N)
+    # initialize 2D RHS contribution
+    b = np.zeros((N+1, N+1), dtype=float)
+    qL = neumann_funcs.get('left', None)
+    qR = neumann_funcs.get('right', None)
+    qB = neumann_funcs.get('bottom', None)
+    qT = neumann_funcs.get('top', None)
+    # LEFT boundary: x = -1, outward normal n = (-1,0)
+    if qL is not None:
+        x = -1.0
+        for j in range(N+1):
+            y = pts[j]
+            qval = qL(x, y)  # q must be ∂_n u (n·grad u) 
+            b[0, j] += alpha * qval * wts[j]
+    # RIGHT boundary: x = +1, outward normal n = (1,0)
+    if qR is not None:
+        x = 1.0
+        for j in range(N+1):
+            y = pts[j]
+            qval = qR(x, y)
+            b[N, j] += alpha * qval * wts[j]
+    # BOTTOM boundary: y = -1, outward normal n = (0,-1)
+    if qB is not None:
+        y = -1.0
+        for i in range(N+1):
+            x = pts[i]
+            qval = qB(x, y)
+            b[i, 0] += alpha * qval * wts[i]
+    # TOP boundary: y = +1, outward normal n = (0,1)
+    if qT is not None:
+        y = 1.0
+        for i in range(N+1):
+            x = pts[i]
+            qval = qT(x, y)
+            b[i, N] += alpha * qval * wts[i]
+    return b
+
+def modify_lhs_rhs_mixed(LHS, RHS, N, BCs, alpha, pts, wts, u_field=None, c=None):
+    """
+    Mixed Dirichlet + Neumann for diffusion and advection (stable SEM version).
+    """
+    # --- DIFFUSION NEUMANN ---
+    neumann_funcs = {side: None for side in ['left','right','bottom','top']}
+    for side in neumann_funcs:
+        entry = BCs.get(side, None)
+        if entry is not None and entry[0] == 'neumann':
+            neumann_funcs[side] = entry[1]
+
+    b2d = construct_neumann_rhs_2d(neumann_funcs, N, alpha, pts, wts)
+    print("max b2d neumann rhs:", np.max(np.abs(b2d)))
+    RHS += map_2d_to_1d(b2d, N)
+    # --- ADVECTION FLUX ---
+    # if u_field is not None and c is not None:
+    #     adv2d = construct_advection_flux_rhs_2d(u_field, c, N, pts, wts, BCs)
+    #     RHS += map_2d_to_1d(adv2d, N)
+    for j in range(N+1):
+        # Left boundary
+        if BCs.get('left', (None,None))[0] == 'dirichlet':
+            k = j*(N+1)
+            val = BCs['left'][1](-1.0, pts[j])
+            LHS[k,:] = 0.; LHS[k,k] = 1.
+            RHS[k] = val
+        # Right boundary
+        if BCs.get('right', (None,None))[0] == 'dirichlet':
+            k = j*(N+1)+N
+            val = BCs['right'][1](1.0, pts[j])
+            LHS[k,:] = 0.; LHS[k,k] = 1.
+            RHS[k] = val
+    for i in range(N+1):
+        # Bottom boundary
+        if BCs.get('bottom', (None,None))[0] == 'dirichlet':
+            k = i
+            val = BCs['bottom'][1](pts[i], -1.0)
+            LHS[k,:] = 0.; LHS[k,k] = 1.
+            RHS[k] = val
+        # Top boundary
+        if BCs.get('top', (None,None))[0] == 'dirichlet':
+            k = i + N*(N+1)
+            val = BCs['top'][1](pts[i], 1.0)
+            LHS[k,:] = 0.; LHS[k,k] = 1.
+            RHS[k] = val
+    return LHS, RHS
+
+def construct_advection_flux_rhs_2d(u_field, c, N, pts, wts, BCs=None):
+    """
+    Compute boundary integral ∫ (c·n) u ϕ dS for SEM.
+    Uses Dirichlet value on inflow boundaries, interior u_field on outflow.
+    Strong Dirichlet nodes are skipped.
+    """
+    cx, cy = c
+    rhs2d = np.zeros((N+1, N+1))
+
+    normals = {'left':(-1,0),'right':(1,0),'bottom':(0,-1),'top':(0,1)}
+    face_nodes = {
+        'left': lambda k: (0, k),
+        'right': lambda k: (N, k),
+        'bottom': lambda k: (k, 0),
+        'top': lambda k: (k, N)
+    }
+
+    for face in ['left','right','bottom','top']:
+        nx, ny = normals[face]
+
+        for k in range(N+1):
+            ix, iy = face_nodes[face](k)
+            x, y = pts[ix], pts[iy]
+
+            # Skip strong Dirichlet nodes (already imposed)
+            if BCs is not None and BCs.get(face, (None,None))[0] == 'dirichlet':
+                continue
+
+            vn = cx(x,y)*nx + cy(x,y)*ny
+
+            if vn < 0:  # inflow
+                u_val = 0.0 
+                if BCs is not None and BCs.get(face, (None,None))[0] == 'dirichlet':
+                    u_val = BCs[face][1](x, y)
+                rhs2d[ix, iy] += abs(vn) * u_val * wts[k]
+            else:       # outflow
+                rhs2d[ix, iy] += vn * u_field[ix, iy] * wts[k]
+
+    return rhs2d
