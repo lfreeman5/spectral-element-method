@@ -1,6 +1,6 @@
 import numpy as np
 from gll_utils import gll_pts_wts
-from tensor_sem_utils import map_MM_to_M2M2, map_2d_to_1d, create_Jhat, create_C, nonlinear_advection_at_previous_time, calc_v_hat
+from ns_utils import  calc_v_hat
 
 if __name__ == "__main__":
     N = 10
