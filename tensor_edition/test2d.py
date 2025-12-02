@@ -8,24 +8,27 @@ if __name__ == "__main__":
     # Create mass, stiffness matrices, which will be N2 x N2
     # Create 2D u0 
     alpha = .001
+    # alpha = 1.0
     N = 10
     pts, wts = gll_pts_wts(N)
     M,A = create_mass_stiffness_2d(N)
     A*=-alpha # Add diffusion effect. What is correct sign?
 
-    Nt = 100
+    Nt = 1000
     dt = 0.01
     U = np.zeros((Nt,N+1,N+1))
     # Gaussian bump initial condition, not centered at origin
-    x0, y0 = 0.5, 0.0
+    x0, y0 = 0.0, 0.0
     sigma = 0.1
     X, Y = np.meshgrid(pts, pts, indexing='ij')
     U[0,:,:] = np.exp(-((X - x0)**2 + (Y - y0)**2) / (2 * sigma**2))
 
     # Deal with advection field
     M_over = 15 # Overintegrated velocity field
-    cx = lambda x,y: -y
-    cy = lambda x,y: x
+    # cx = lambda x,y: -y
+    # cy = lambda x,y: x
+    cx = lambda x,y: 1
+    cy = lambda x,y: 0
     mpts, _ = gll_pts_wts(M_over)
     CxMM, CyMM = np.zeros((M_over+1,M_over+1)), np.zeros((M_over+1,M_over+1))
     for i in range(M_over+1):
@@ -37,6 +40,7 @@ if __name__ == "__main__":
     for n in range(Nt-1):
         print(f'Calculating iter {n+1}, previous max: {np.max(U[n,:,:])}')
         LHS = M/dt-A-C
+        # LHS = M/dt-A
         RHS = (1/dt*M)@(map_2d_to_1d(U[n,:,:],N))
         lmod, rmod = modify_lhs_rhs_dirichlet(LHS, RHS, N, 0.0)
         U[n+1,:,:] = map_1d_to_2d(np.linalg.solve(lmod,rmod),N)
