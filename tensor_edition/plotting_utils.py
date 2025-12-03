@@ -95,3 +95,94 @@ def animate_solution_2d(U_solution, times, gll_pts, filename, N_pts=100):
         anim.save(gif_name, writer=writer)
         print(f"ffmpeg not available; saved GIF to {gif_name}")
     plt.close(fig)
+
+
+
+def plot_ns_solution_2d_vector(u_2d, v_2d, times, gll_pts, t, N_pts=40):
+    """
+    Plot a 2D velocity field (u, v) at time t.
+
+    u_2d, v_2d : solution arrays in shape (N+1, N+1)
+    """
+    # pick nearest index
+    t_idx = np.argmin(np.abs(times - t))
+
+    # construct spectral interpolants
+    u_func = construct_solution_2d_fast(u_2d, gll_pts)
+    v_func = construct_solution_2d_fast(v_2d, gll_pts)
+
+    # grid for plotting
+    x = np.linspace(-1, 1, N_pts)
+    y = np.linspace(-1, 1, N_pts)
+    X, Y = np.meshgrid(x, y)
+
+    # evaluate velocity field
+    U = u_func(x, y)
+    V = v_func(x, y)
+
+    # transpose if needed
+    if U.shape != X.shape:
+        U = U.T
+        V = V.T
+
+    # magnitude
+    speed = np.sqrt(U**2 + V**2)
+
+    fig, ax = plt.subplots(figsize=(6,5))
+
+    # background magnitude color plot
+    c = ax.pcolormesh(X, Y, speed, shading='auto')
+
+    # quiver (vector arrows)
+    ax.quiver(X, Y, U, V, color='white', scale=40)
+
+    fig.colorbar(c, ax=ax, label='|v|')
+    ax.set_title(f"Velocity field at t = {t:.3f}")
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    plt.tight_layout()
+    plt.show()
+
+def plot_pressure_2d(p1d, times, gll_pts, t, N_pts=50):
+    """
+    Plot the 2D pressure field reconstructed from a 1D spectral-element vector.
+
+    Parameters
+    ----------
+    p1d : ndarray
+        Pressure values in a flattened (N+1)^2 array at GLL points.
+    times : ndarray
+        Array of simulation times.
+    gll_pts : ndarray
+        1D GLL nodes used for interpolation.
+    t : float
+        Desired physical time to plot.
+    N_pts : int
+        Number of uniform grid points per dimension for plotting.
+    """
+
+    # find closest time index
+    t_idx = np.argmin(np.abs(times - t))
+
+    # rebuild interpolation function
+    p_func = construct_solution_2d_fast(p1d, gll_pts)
+
+    # uniform grid
+    x = np.linspace(-1, 1, N_pts)
+    y = np.linspace(-1, 1, N_pts)
+    X, Y = np.meshgrid(x, y)
+
+    # evaluate
+    P_plot = p_func(x, y)
+    if P_plot.shape != X.shape:
+        P_plot = P_plot.T
+
+    # plotting
+    fig, ax = plt.subplots()
+    c = ax.pcolormesh(X, Y, P_plot, shading='auto')
+    ax.set_xlabel('x')
+    ax.set_ylabel('y')
+    ax.set_title(f'Pressure at t = {t:.3f}')
+    fig.colorbar(c, ax=ax)
+    plt.tight_layout()
+    plt.show()

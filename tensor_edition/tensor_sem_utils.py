@@ -36,7 +36,7 @@ def create_mass_stiffness_2d(N):
     D = Dhat.T@Bhat@Dhat
     M = np.kron(Bhat, Bhat)
     A = np.kron(D,Bhat) + np.kron(Bhat,D) # Note that this isn't scaled by alpha
-    return M,A     
+    return M,-A     
 
 
 def create_C(N,M,CxM2,CyM2):
@@ -88,7 +88,8 @@ def map_MM_to_M2M2(arr,M):
 
 
 def modify_lhs_rhs_dirichlet(LHS,RHS,N,u_dirichlet):
-    pass
+    # Hacked together for now, assumes all conditiions are dirichlet
+    [ub, ut, ul, ur] = u_dirichlet
     # Left and right
     for j in range(N+1):
         kL = (N+1)*j
@@ -97,8 +98,8 @@ def modify_lhs_rhs_dirichlet(LHS,RHS,N,u_dirichlet):
         LHS[kR,:] = 0.
         LHS[kL, kL] = 1.
         LHS[kR, kR] = 1.
-        RHS[kL] = u_dirichlet
-        RHS[kR] = u_dirichlet
+        RHS[kL] = ul
+        RHS[kR] = ur
     # Top and bottom
     for i in range(N+1):
         kB = i
@@ -107,37 +108,32 @@ def modify_lhs_rhs_dirichlet(LHS,RHS,N,u_dirichlet):
         LHS[kT,:] = 0.
         LHS[kB, kB] = 1.
         LHS[kT, kT] = 1.
-        RHS[kB] = u_dirichlet
-        RHS[kT] = u_dirichlet
+        RHS[kB] = ub
+        RHS[kT] = ut
     return LHS,RHS
 
 
-def nonlinear_advection_at_previous_time(N, M, ux_coefs, uy_coefs):      
-
-    J_hat = create_Jhat(N,M) 
-    B_hat_M, D_hat = create_Bhat_Dhat(M)
-    D_tilde = create_Dtilde(N,M)
-    B_M = np.kron(B_hat_M, B_hat_M)
+def nonlinear_advection_at_previous_time(u_coefs, v_coefs, J_hat, B_M, D_tilde):      
     
     # notes eq 222
-    Cx_field = np.kron(J_hat,J_hat)@ux_coefs 
-    Cy_field = np.kron(J_hat,J_hat)@uy_coefs 
+    Cu_field = np.kron(J_hat,J_hat)@u_coefs 
+    Cv_field = np.kron(J_hat,J_hat)@v_coefs 
 
     
-    Cx_M = np.diag(Cx_field)
-    Cy_M = np.diag(Cy_field)
+    Cu_M = np.diag(Cu_field)
+    Cv_M = np.diag(Cv_field)
 
     # notes eq 489
-    Cx = np.kron(J_hat.transpose(),J_hat.transpose())@B_M@Cx_M@np.kron(J_hat, D_tilde)
+    Cu = np.kron(J_hat.transpose(),J_hat.transpose())@B_M@Cu_M@np.kron(J_hat, D_tilde)
     # notes eq 490
-    Cy = np.kron(J_hat.transpose(),J_hat.transpose())@B_M@Cy_M@np.kron(D_tilde,J_hat)
+    Cv = np.kron(J_hat.transpose(),J_hat.transpose())@B_M@Cv_M@np.kron(D_tilde,J_hat)
     # maybe a faster way in eq. 491
     
-    C = Cx + Cy
-    Cvx = C@ux_coefs
-    Cvy = C@uy_coefs
+    C = Cu + Cv
+    Cv_u = C@u_coefs
+    Cv_v = C@v_coefs
 
-    return Cvx, Cvy
+    return Cv_u, Cv_v
 
 # unused
 def nonlinear_advection_at_previous_time_textbook(N, ux_coefs, uy_coefs):    
