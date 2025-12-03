@@ -64,7 +64,7 @@ if __name__ == "__main__":
 
         # do helmholtz solves
         print("Helmholtz solves")
-        vel[n+1,:,:] = helmholtz_update(dt, k, alpha, A, M, v_hathat) 
+        vel[n+1,:,:] = helmholtz_update(N,dt, k, alpha, A, M, v_hathat, vel_boundary) 
 
     
         if(n%10==0):
