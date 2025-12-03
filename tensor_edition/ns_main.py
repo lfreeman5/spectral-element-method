@@ -2,7 +2,7 @@ import numpy as np
 from gll_utils import gll_pts_wts
 from plotting_utils import plot_ns_solution_2d_vector, plot_pressure_2d
 from tensor_sem_utils import create_mass_stiffness_2d, map_1d_to_2d, map_2d_to_1d, modify_lhs_rhs_dirichlet, create_Jhat, create_Dtilde, create_Bhat_Dhat
-from ns_utils import calc_v_hat, pressure_solve, correct_vhat_with_pressure, helmholtz_update, curlcurl
+from ns_utils import calc_v_hat, pressure_solve, correct_vhat_with_pressure, helmholtz_update, curlcurl, evaluate_cfl
 
 
 
@@ -22,7 +22,7 @@ if __name__ == "__main__":
     Nt = 100
     dt = 0.01
 
-    lid_velocity = 1.0
+    lid_velocity = 0.0
 
 
     vel = np.zeros((Nt,2,(N+1)**2))
@@ -30,6 +30,8 @@ if __name__ == "__main__":
     # set initial velocity conditions (set first few time steps as the same)
     u_init = np.zeros((N+1,N+1))
     v_init = np.zeros((N+1,N+1))
+    u_init[4:6, 4:6] = 0.1
+    # v_init[1:N, 1:N] = 0.1
 
     vel[0:k,0,:] = map_2d_to_1d(u_init, N)
     vel[0:k,1,:] = map_2d_to_1d(v_init, N)
@@ -53,6 +55,7 @@ if __name__ == "__main__":
     Dy = np.kron(D_hat_N,eye) 
 
     for n in range(k-1, Nt-1):
+
         print(f'Calculating iter {n+1}, previous max u: {np.max(vel[n,0,:])}, previous max v: {np.max(vel[n,1,:])}')
         # update v_hat using saved u and v data,   if k=3, (n-k+1):(n+1) should give n-2, n-1, n
         v_hat = calc_v_hat(k, dt, vel[(n-k+1):(n+1),:, ::-1], M, J_hat, B_M, D_tilde)
@@ -66,7 +69,9 @@ if __name__ == "__main__":
         print("Helmholtz solves")
         vel[n+1,:,:] = helmholtz_update(N,dt, k, alpha, A, M, v_hathat, vel_boundary) 
 
-    
+        cfl = evaluate_cfl(N, dt, vel[n+1,:,:])
+        print("cfl = ", cfl )
+        
         if(n%1==0):
             # Plot the current state every 10 iterations
             u2d = map_1d_to_2d(vel[n+1,0,:], N)
