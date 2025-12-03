@@ -146,3 +146,17 @@ def curlcurl(velocities,Dx,Dy):
     uyy = Dy@Dy@u
 
     return np.array([vxy-uyy,uxy-vxx])
+
+
+def evaluate_cfl(N,dt,vel):
+    '''
+    Compute rough estimate of CFL number given a polynomial number, timestep, and velocity array
+    N: polynomial order
+    dt: timestep
+    vel: 2x(N+1)^2 velocity at current timestep
+    '''
+    gll_pts, _ = gll_pts_wts(N)
+    max_vel = np.max(vel)
+    min_dist = np.abs(gll_pts[1]-gll_pts[0])
+    cfl = (max_vel*dt)/min_dist
+    return cfl
