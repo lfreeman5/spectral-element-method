@@ -125,8 +125,8 @@ def helmholtz_update(dt, k, diffusivity, A, M, vhathat):
     '''
     implicit_coeff = BDFk_coefs(k)[0] # Should be 11/6 for k=3?
     LHS = implicit_coeff*M - dt*diffusivity*A
-    RHS_u = vhathat[:,0]
-    RHS_v = vhathat[:,1]
+    RHS_u = M@vhathat[:,0] # Chat suggests vhathat should also be multiplied by M
+    RHS_v = M@vhathat[:,1] # Makes sense if Beta_k is multiplied by M
     B = np.column_stack((RHS_u, RHS_v))   # shape (n, 2)
     sol_next = np.linalg.solve(LHS, B)    # shape (n, 2) - apparantly numpy can solve 2 at once?
     return sol_next
@@ -145,4 +145,4 @@ def curlcurl(velocities,Dx,Dy):
     uxy = Dx@Dy@u
     uyy = Dy@Dy@u
 
-    return np.array([vxy-uyy,vxx-uxy])
+    return np.array([vxy-uyy,uxy-vxx])
