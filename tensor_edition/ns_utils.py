@@ -3,7 +3,7 @@ from tensor_sem_utils import *
 from fractions import Fraction
 
 
-def calc_v_hat(k, dt, saved_vel_coefs, J_hat, B_M, D_tilde):
+def calc_v_hat(k, dt, saved_vel_coefs, M, J_hat, B_M, D_tilde):
     '''
     calculates v_hat used in pressure poisson solve, based on eq. 6.5.8 in the text
     k: order of BDF (implicit) terms and Adams Bashforth (explicit) terms
@@ -16,18 +16,18 @@ def calc_v_hat(k, dt, saved_vel_coefs, J_hat, B_M, D_tilde):
     bj = AB_coefs(k)
     __, beta_k_minus_j = BDFk_coefs(k)
 
-    v_hat_u = np.zeros(len(saved_vel_coefs[0,0,-1]))
-    v_hat_v = np.zeros(len(saved_vel_coefs[0,0,-1])) 
+    v_hat_u = np.zeros(len(saved_vel_coefs[0,0]))
+    v_hat_v = np.zeros(len(saved_vel_coefs[0,0])) 
     for j in range(k):
     #     print("      bj = ", Fraction(bj[j]).limit_denominator())
     #     print("beta k-j = ", Fraction(beta_k_minus_j[j]).limit_denominator())
 
 
         Cu, Cv = nonlinear_advection_at_previous_time(saved_vel_coefs[j,0,:], saved_vel_coefs[j,1,:], J_hat, B_M, D_tilde) # j = 0 is
-        v_hat_u += -beta_k_minus_j[j]*B_M@saved_vel_coefs[j,0,:] + dt*bj[j]*Cu
-        v_hat_v += -beta_k_minus_j[j]*B_M@saved_vel_coefs[j,1,:] + dt*bj[j]*Cv
+        v_hat_u += -beta_k_minus_j[j]*M@saved_vel_coefs[j,0,:] + dt*bj[j]*Cu
+        v_hat_v += -beta_k_minus_j[j]*M@saved_vel_coefs[j,1,:] + dt*bj[j]*Cv
 
-    return np.array([v_hat_u, v_hat_v]).T # Change shape to be (N+1)^2 x 2
+    return np.array([v_hat_u, v_hat_v]) # Change shape to be 2 x (N+1)^2 
 
 def pressure_solve(N,k,dt,vel,vhat,A,M,Dx,Dy,vel_boundary):
     '''
@@ -45,7 +45,7 @@ def pressure_solve(N,k,dt,vel,vhat,A,M,Dx,Dy,vel_boundary):
     '''
 
     # Set up boundary term 
-    B = np.zeros(((N+1)^2,(N+1)^2))
+    B = np.zeros(((N+1)**2,(N+1)**2))
 
     # GLL pts, wts
     _,wts = gll_pts_wts(N)
@@ -58,7 +58,7 @@ def pressure_solve(N,k,dt,vel,vhat,A,M,Dx,Dy,vel_boundary):
     div_vhat = Dx@vhat[0]+Dy@vhat[1]
 
     # Compute curl(curl(v^{n+1-j})) for non-boundary-dependent part
-    inner_boundary_term = np.zeros_like(vhat)
+    inner_boundary_term = np.zeros((2,(N+1)**2))
     for j in range(k):
         inner_boundary_term += expl_coeffs[j]*curlcurl(vel[j],Dx,Dy) #
     inner_boundary_term -= vhat/dt
@@ -102,14 +102,14 @@ def correct_vhat_with_pressure(N,dt,vhat,p,Dx,Dy):
     Corrects v_hat using the pressure gradient.
     N: int, polynomial order
     dt: float, timestep
-    vhat: ((N+1)^2, 2) array, velocity coefficients
+    vhat: (2, (N+1)^2) array, velocity coefficients
     p: ((N+1)^2,) array, pressure coefficients
     Dx, Dy: ((N+1)^2, (N+1)^2) arrays, differentiation tensors
-    Returns vhathat: ((N+1)^2, 2) array, corrected velocity coefficients
+    Returns vhathat: (2,(N+1)^2) array, corrected velocity coefficients
     '''
-    gradp = np.zeros(((N+1)^2,2))
-    gradp[:,0] = Dx@p
-    gradp[:,1] = Dy@p
+    gradp = np.zeros((2,(N+1)**2))
+    gradp[0,:] = Dx@p
+    gradp[1,:] = Dy@p
     vhathat = vhat - dt*gradp
     return vhathat
 
@@ -121,16 +121,16 @@ def helmholtz_update(dt, k, diffusivity, A, M, vhathat):
     diffusivity: float, diffusion coefficient
     A: ((N+1)^2, (N+1)^2) array, stiffness matrix
     M: ((N+1)^2, (N+1)^2) array, mass matrix
-    vhathat: ((N+1)^2, 2) array, corrected velocity coefficients
-    Returns sol_next: ((N+1)^2, 2) array, updated velocity coefficients
+    vhathat: (2, (N+1)^2) array, corrected velocity coefficients
+    Returns sol_next: (2,(N+1)^2) array, updated velocity coefficients
     '''
     implicit_coeff = BDFk_coefs(k)[0] # Should be 11/6 for k=3?
     LHS = implicit_coeff*M - dt*diffusivity*A
-    RHS_u = M@vhathat[:,0] # Chat suggests vhathat should also be multiplied by M
-    RHS_v = M@vhathat[:,1] # Makes sense if Beta_k is multiplied by M
+    RHS_u = M@vhathat[0,:] # Chat suggests vhathat should also be multiplied by M
+    RHS_v = M@vhathat[1,:] # Makes sense if Beta_k is multiplied by M
     B = np.column_stack((RHS_u, RHS_v))   # shape (n, 2)
     sol_next = np.linalg.solve(LHS, B)    # shape (n, 2) - apparantly numpy can solve 2 at once?
-    return sol_next.T
+    return sol_next
 
 def curlcurl(velocities,Dx,Dy):
     '''
