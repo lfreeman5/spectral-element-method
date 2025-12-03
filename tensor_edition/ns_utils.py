@@ -3,7 +3,7 @@ from tensor_sem_utils import *
 from fractions import Fraction
 
 
-def calc_v_hat(N, M, k, dt, saved_vx_coefs, saved_vy_coefs):
+def calc_v_hat(k, dt, saved_u_coefs, saved_v_coefs, J_hat, B_M, D_tilde):
     '''
     based on eq. 6.5.8 in the text
     calculates v_hat used in pressure poisson solve.
@@ -14,17 +14,19 @@ def calc_v_hat(N, M, k, dt, saved_vx_coefs, saved_vy_coefs):
     bj = AB_coefs(k)
     __, beta_k_minus_j = BDFk_coefs(k)
 
-    v_hat_x = np.zeros(len(saved_vx_coefs[-1]))
-    v_hat_y = np.zeros(len(saved_vy_coefs[-1])) 
+    v_hat_u = np.zeros(len(saved_u_coefs[-1]))
+    v_hat_v = np.zeros(len(saved_v_coefs[-1])) 
     for j in range(k):
     #     print("      bj = ", Fraction(bj[j]).limit_denominator())
     #     print("beta k-j = ", Fraction(beta_k_minus_j[j]).limit_denominator())
         # -(1+j) because we want most recent data (list element -1), then the one before that (list element -2), and so on
-        Cvx, Cvy = nonlinear_advection_at_previous_time(N,M,saved_vx_coefs[-(1+j)], saved_vy_coefs[-(1+j)]) # -(1+j) because we want most recent
-        v_hat_x += -beta_k_minus_j[j]*M@saved_vx_coefs[-(1+j)] + dt*bj[j]*Cvx
-        v_hat_y += -beta_k_minus_j[j]*M@saved_vy_coefs[-(1+j)] + dt*bj[j]*Cvy
 
-    return np.array([v_hat_x, v_hat_y]).T # Change shape to be (N+1)^2 x 2
+
+        Cu, Cv = nonlinear_advection_at_previous_time(saved_u_coefs[-(1+j)], saved_v_coefs[-(1+j)], J_hat, B_M, D_tilde) # -(1+j) because we want most recent
+    v_hat_u += -beta_k_minus_j[j]*B_M@saved_u_coefs[-(1+j)] + dt*bj[j]*Cu
+    v_hat_v += -beta_k_minus_j[j]*B_M@saved_v_coefs[-(1+j)] + dt*bj[j]*Cv
+
+    return np.array([v_hat_u, v_hat_v]).T # Change shape to be (N+1)^2 x 2
 
 def pressure_solve(N,k,dt,vel,vhat,A,M,Dx,Dy,vel_boundary):
     '''
