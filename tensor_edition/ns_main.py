@@ -2,7 +2,7 @@ import numpy as np
 from gll_utils import gll_pts_wts
 from plotting_utils import plot_ns_solution_2d
 from tensor_sem_utils import create_mass_stiffness_2d, map_1d_to_2d, map_2d_to_1d, modify_lhs_rhs_dirichlet, create_Jhat, create_Dtilde, create_Bhat_Dhat
-from ns_utils import calc_v_hat
+from ns_utils import calc_v_hat, pressure_solve, correct_vhat_with_pressure, helmholtz_update, curlcurl
 
 
 
@@ -48,11 +48,11 @@ if __name__ == "__main__":
         v_hat_u, v_hat_v = calc_v_hat(k, dt, u[(n-k+1):(n+1), ::-1], v[(n-k+1):(n+1), ::-1])
 
         # do pressure solve
+        p = pressure_solve(N, k, dt, vel, v_hat, A, M, Dx, Dy, vel_boundary)
 
         # do helmholtz solves
         print("Helmholtz solve u")
         u[n+1,:] = 
-
         print("Helmholtz solve v")
         v[n+1,:] = 
 
