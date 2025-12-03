@@ -40,7 +40,8 @@ def pressure_solve(N,k,dt,vel,vhat,A,M,Dx,Dy,vel_boundary):
     A: ((N+1)^2, (N+1)^2) array, stiffness matrix
     M: ((N+1)^2, (N+1)^2) array, mass matrix
     Dx, Dy: ((N+1)^2, (N+1)^2) arrays, differentiation tensors
-    vel_boundary: (4, 2) array, velocity boundary conditions
+    vel_boundary: (4, 2) array, velocity boundary conditions for each side of the domain.
+        The order is [bottom, top, left, right], with each entry being a 2D velocity vector.
     Returns p: ((N+1)^2,) array, pressure coefficients
     '''
 
@@ -120,7 +121,7 @@ def correct_vhat_with_pressure(N,dt,vhat,p,Dx,Dy):
     vhathat = vhat - dt*gradp
     return vhathat
 
-def helmholtz_update(dt, k, diffusivity, A, M, vhathat):
+def helmholtz_update(N, dt, k, diffusivity, A, M, vhathat, vel_bound):
     '''
     Updates velocity coefficients by solving the Helmholtz equation.
     dt: float, timestep
@@ -135,8 +136,10 @@ def helmholtz_update(dt, k, diffusivity, A, M, vhathat):
     LHS = implicit_coeff*M - dt*diffusivity*A
     RHS_u = M@vhathat[0,:] # Chat suggests vhathat should also be multiplied by M
     RHS_v = M@vhathat[1,:] # Makes sense if Beta_k is multiplied by M
-    B = np.column_stack((RHS_u, RHS_v))   # shape ((n+1)^2, 2)
-    sol_next = np.linalg.solve(LHS, B)    # shape ((n+1)^2, 2) - apparantly numpy can solve 2 at once?
+    LHS_mod, RHS_u_mod = modify_lhs_rhs_dirichlet(LHS,RHS_u,N,vel_bound[:,0]) # No need to modify both LHS!
+    _, RHS_v_mod = modify_lhs_rhs_dirichlet(LHS,RHS_v,N,vel_bound[:,1])
+    B = np.column_stack((RHS_u_mod, RHS_v_mod))   # shape ((n+1)^2, 2)
+    sol_next = np.linalg.solve(LHS_mod, B)    # shape ((n+1)^2, 2) - apparantly numpy can solve 2 at once?
     return sol_next.T # shape (2, (n+1)^2)
 
 def curlcurl(velocities,Dx,Dy):

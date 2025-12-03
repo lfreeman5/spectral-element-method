@@ -88,7 +88,8 @@ def map_MM_to_M2M2(arr,M):
 
 
 def modify_lhs_rhs_dirichlet(LHS,RHS,N,u_dirichlet):
-    pass
+    # Hacked together for now, assumes all conditiions are dirichlet
+    [ub, ut, ul, ur] = u_dirichlet
     # Left and right
     for j in range(N+1):
         kL = (N+1)*j
@@ -97,8 +98,8 @@ def modify_lhs_rhs_dirichlet(LHS,RHS,N,u_dirichlet):
         LHS[kR,:] = 0.
         LHS[kL, kL] = 1.
         LHS[kR, kR] = 1.
-        RHS[kL] = 1
-        RHS[kR] = 5
+        RHS[kL] = ul
+        RHS[kR] = ur
     # Top and bottom
     for i in range(N+1):
         kB = i
@@ -107,8 +108,8 @@ def modify_lhs_rhs_dirichlet(LHS,RHS,N,u_dirichlet):
         LHS[kT,:] = 0.
         LHS[kB, kB] = 1.
         LHS[kT, kT] = 1.
-        RHS[kB] = 2
-        RHS[kT] = 6
+        RHS[kB] = ub
+        RHS[kT] = ut
     return LHS,RHS
 
 
