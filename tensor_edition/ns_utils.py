@@ -3,29 +3,29 @@ from tensor_sem_utils import *
 from fractions import Fraction
 
 
-def calc_v_hat(k, dt, saved_u_coefs, saved_v_coefs, J_hat, B_M, D_tilde):
+def calc_v_hat(k, dt, saved_vel_coefs, J_hat, B_M, D_tilde):
     '''
     calculates v_hat used in pressure poisson solve, based on eq. 6.5.8 in the text
     k: order of BDF (implicit) terms and Adams Bashforth (explicit) terms
-    saved_u_coefs: (k,(N+1)^2) array with k columns of previous u data timesteps [n, n-1, n-2, ...]
-    saved_v_coefs: (k,(N+1)^2) array with k columns of previous v data timesteps [n, n-1, n-2, ...]
+    saved_u_coefs: (k,2,(N+1)^2) array with k sets of previous [u,v] data timesteps [n, n-1, n-2, ...]
     J_hat: (M+1,N+1) interpolation matrix
-    B_M: ((N+1)^2, (N+1)^2) array, mass matrix 
+    B_M: ((M+1)^2, (M+1)^2) array, mass matrix for overintegration
+    D_tilde: (M+1,N+1) array, derivative matrix for overintegration
     '''
     # get integration coefficients
     bj = AB_coefs(k)
     __, beta_k_minus_j = BDFk_coefs(k)
 
-    v_hat_u = np.zeros(len(saved_u_coefs[-1]))
-    v_hat_v = np.zeros(len(saved_v_coefs[-1])) 
+    v_hat_u = np.zeros(len(saved_vel_coefs[0,0,-1]))
+    v_hat_v = np.zeros(len(saved_vel_coefs[0,0,-1])) 
     for j in range(k):
     #     print("      bj = ", Fraction(bj[j]).limit_denominator())
     #     print("beta k-j = ", Fraction(beta_k_minus_j[j]).limit_denominator())
 
 
-        Cu, Cv = nonlinear_advection_at_previous_time(saved_u_coefs[j,:], saved_v_coefs[j,:], J_hat, B_M, D_tilde) # j = 0 is
-        v_hat_u += -beta_k_minus_j[j]*B_M@saved_u_coefs[j,:] + dt*bj[j]*Cu
-        v_hat_v += -beta_k_minus_j[j]*B_M@saved_v_coefs[j,:] + dt*bj[j]*Cv
+        Cu, Cv = nonlinear_advection_at_previous_time(saved_vel_coefs[j,0,:], saved_vel_coefs[j,1,:], J_hat, B_M, D_tilde) # j = 0 is
+        v_hat_u += -beta_k_minus_j[j]*B_M@saved_vel_coefs[j,0,:] + dt*bj[j]*Cu
+        v_hat_v += -beta_k_minus_j[j]*B_M@saved_vel_coefs[j,1,:] + dt*bj[j]*Cv
 
     return np.array([v_hat_u, v_hat_v]).T # Change shape to be (N+1)^2 x 2
 
@@ -60,7 +60,7 @@ def pressure_solve(N,k,dt,vel,vhat,A,M,Dx,Dy,vel_boundary):
     # Compute curl(curl(v^{n+1-j})) for non-boundary-dependent part
     inner_boundary_term = np.zeros_like(vhat)
     for j in range(k):
-        inner_boundary_term += expl_coeffs[j]*curlcurl(vel[-(j+1)],Dx,Dy) #
+        inner_boundary_term += expl_coeffs[j]*curlcurl(vel[j],Dx,Dy) #
     inner_boundary_term -= vhat/dt
     inner_boundary_term = map_1d_to_2d(inner_boundary_term, N)
     # At this point need to move to side-by-side based on velocity in
@@ -130,7 +130,7 @@ def helmholtz_update(dt, k, diffusivity, A, M, vhathat):
     RHS_v = M@vhathat[:,1] # Makes sense if Beta_k is multiplied by M
     B = np.column_stack((RHS_u, RHS_v))   # shape (n, 2)
     sol_next = np.linalg.solve(LHS, B)    # shape (n, 2) - apparantly numpy can solve 2 at once?
-    return sol_next
+    return sol_next.T
 
 def curlcurl(velocities,Dx,Dy):
     '''

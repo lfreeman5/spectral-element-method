@@ -89,26 +89,47 @@ def animate_solution_2d(U_solution, times, gll_pts, filename, N_pts=100):
 
 
 
-def plot_ns_solution_2d(u_solution, v_solution, times, gll_pts, t, N_pts=50):
+def plot_ns_solution_2d_vector(u_2d, v_2d, times, gll_pts, t, N_pts=40):
     """
-    THIS NEEDS TO BE UPDATED FOR A u,v VECTOR FIELD
-    Plots the solution at a given time t as a color plot.
+    Plot a 2D velocity field (u, v) at time t.
+
+    u_2d, v_2d : solution arrays in shape (N+1, N+1)
     """
+    # pick nearest index
     t_idx = np.argmin(np.abs(times - t))
-    u_func = construct_solution_2d_fast(U_solution[t_idx, :, :], gll_pts)
-    
+
+    # construct spectral interpolants
+    u_func = construct_solution_2d_fast(u_2d, gll_pts)
+    v_func = construct_solution_2d_fast(v_2d, gll_pts)
+
+    # grid for plotting
     x = np.linspace(-1, 1, N_pts)
     y = np.linspace(-1, 1, N_pts)
     X, Y = np.meshgrid(x, y)
-    # Pass 1D arrays to u_func, then transpose for plotting if needed
-    U_plot = u_func(x, y)
-    if U_plot.shape != X.shape:
-        U_plot = U_plot.T  # Ensure shape matches meshgrid
 
-    fig, ax = plt.subplots()
-    c = ax.pcolormesh(X, Y, U_plot, cmap='viridis', shading='auto')
-    ax.set_xlabel('x')
-    ax.set_ylabel('y')
-    ax.set_title(f'Solution at t = {times[t_idx]:.2f}')
-    fig.colorbar(c, ax=ax)
+    # evaluate velocity field
+    U = u_func(x, y)
+    V = v_func(x, y)
+
+    # transpose if needed
+    if U.shape != X.shape:
+        U = U.T
+        V = V.T
+
+    # magnitude
+    speed = np.sqrt(U**2 + V**2)
+
+    fig, ax = plt.subplots(figsize=(6,5))
+
+    # background magnitude color plot
+    c = ax.pcolormesh(X, Y, speed, shading='auto')
+
+    # quiver (vector arrows)
+    ax.quiver(X, Y, U, V, color='white', scale=40)
+
+    fig.colorbar(c, ax=ax, label='|v|')
+    ax.set_title(f"Velocity field at t = {t:.3f}")
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    plt.tight_layout()
     plt.show()
