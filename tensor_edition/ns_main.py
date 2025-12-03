@@ -16,7 +16,6 @@ if __name__ == "__main__":
     N = 10
     pts, wts = gll_pts_wts(N)
     M,A = create_mass_stiffness_2d(N)
-    A*=-alpha # Add diffusion effect. What is correct sign?
     
     k = 3 # time stepping order for BDFk/ABk 
     
@@ -52,16 +51,10 @@ if __name__ == "__main__":
 
         # do helmholtz solves
         print("Helmholtz solve u")
-        u_LHS = M/dt-A-C
-        u_RHS = (1/dt*M)@u[n,:]
-        u_lmod, u_rmod = modify_lhs_rhs_dirichlet(u_LHS, v_RHS, N, 0.0)
-        u[n+1,:] = np.linalg.solve(u_lmod,u_rmod)
+        u[n+1,:] = 
 
         print("Helmholtz solve v")
-        v_LHS = M/dt-A-C
-        v_RHS = (1/dt*M)@(map_2d_to_1d(U[n,:,:],N))
-        v_lmod, v_rmod = modify_lhs_rhs_dirichlet(v_LHS, v_RHS, N, 0.0)
-        v[n+1,:] = np.linalg.solve(v_lmod,v_rmod)
+        v[n+1,:] = 
 
     
         if(n%10==0):

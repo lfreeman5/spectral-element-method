@@ -36,7 +36,7 @@ def create_mass_stiffness_2d(N):
     D = Dhat.T@Bhat@Dhat
     M = np.kron(Bhat, Bhat)
     A = np.kron(D,Bhat) + np.kron(Bhat,D) # Note that this isn't scaled by alpha
-    return M,A     
+    return M,-A     
 
 
 def create_C(N,M,CxM2,CyM2):
