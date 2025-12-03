@@ -45,7 +45,7 @@ if __name__ == "__main__":
         print(f'Calculating iter {n+1}, previous max u: {np.max(u[n,:])}, previous max v: {np.max(v[n,:])}')
 
         # update v_hat using saved u and v data,   if k=3, (n-k+1):(n+1) should give n-2, n-1, n
-        v_hat_u, v_hat_v = calc_v_hat(k, dt, u[(n-k+1):(n+1),:], v[(n-k+1):(n+1),:])
+        v_hat_u, v_hat_v = calc_v_hat(k, dt, u[(n-k+1):(n+1), ::-1], v[(n-k+1):(n+1), ::-1])
 
         # do pressure solve
 

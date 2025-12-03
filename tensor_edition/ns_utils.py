@@ -8,7 +8,7 @@ def calc_v_hat(k, dt, saved_u_coefs, saved_v_coefs, J_hat, B_M, D_tilde):
     based on eq. 6.5.8 in the text
     calculates v_hat used in pressure poisson solve.
     k is order of BDF (implicit) terms and Adams Bashforth (explicit) terms
-    saved_vx_coefs and saved_vy_coefs should be lists of np arrays with the most recent vx or vy appended to the end of the list
+    saved_vx_coefs and saved_vy_coefs are arrays with k columns being [n data, n-1 data, n-2 data, ...]
     '''
     # get integration coefficients
     bj = AB_coefs(k)
@@ -22,9 +22,9 @@ def calc_v_hat(k, dt, saved_u_coefs, saved_v_coefs, J_hat, B_M, D_tilde):
         # -(1+j) because we want most recent data (list element -1), then the one before that (list element -2), and so on
 
 
-        Cu, Cv = nonlinear_advection_at_previous_time(saved_u_coefs[-(1+j)], saved_v_coefs[-(1+j)], J_hat, B_M, D_tilde) # -(1+j) because we want most recent
-    v_hat_u += -beta_k_minus_j[j]*B_M@saved_u_coefs[-(1+j)] + dt*bj[j]*Cu
-    v_hat_v += -beta_k_minus_j[j]*B_M@saved_v_coefs[-(1+j)] + dt*bj[j]*Cv
+        Cu, Cv = nonlinear_advection_at_previous_time(saved_u_coefs[j,:], saved_v_coefs[j,:], J_hat, B_M, D_tilde) # j = 0 is
+        v_hat_u += -beta_k_minus_j[j]*B_M@saved_u_coefs[j,:] + dt*bj[j]*Cu
+        v_hat_v += -beta_k_minus_j[j]*B_M@saved_v_coefs[j,:] + dt*bj[j]*Cv
 
     return np.array([v_hat_u, v_hat_v]).T # Change shape to be (N+1)^2 x 2
 
