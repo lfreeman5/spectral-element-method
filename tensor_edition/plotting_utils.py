@@ -13,7 +13,7 @@ def plot_solution_2d(U_solution, times, gll_pts, t, N_pts=50):
     
     x = np.linspace(-1, 1, N_pts)
     y = np.linspace(-1, 1, N_pts)
-    X, Y = np.meshgrid(x, y)
+    X, Y = np.meshgrid(x, y, indexing='ij')
     # Pass 1D arrays to u_func, then transpose for plotting if needed
     U_plot = u_func(x, y)
     if U_plot.shape != X.shape:
@@ -47,8 +47,6 @@ def animate_solution_2d(U_solution, times, gll_pts, filename, N_pts=100):
             print(f"  Frame {i+1}/{num_frames} ({100*(i+1)//num_frames}%)")
         u_func = construct_solution_2d_fast(U_solution[i, :, :], gll_pts)
         U_plot = u_func(x, y)
-        if U_plot.shape != X.shape:
-            U_plot = U_plot.T
         U_frames[i] = U_plot
 
     # Create a 3D surface animation for 480p-ish output
@@ -83,6 +81,17 @@ def animate_solution_2d(U_solution, times, gll_pts, filename, N_pts=100):
 
     anim = FuncAnimation(fig, update, frames=num_frames, blit=False)
     print(f"Saving animation to {filename} (this may take a while)...")
-    anim.save(filename, writer='ffmpeg', fps=15, bitrate=8000, extra_args=['-preset', 'ultrafast'])
-    print("Animation saved.")
+    from matplotlib import animation
+    writers = animation.writers
+    if writers.is_available('ffmpeg'):
+        FFMpegWriter = animation.FFMpegWriter
+        writer = FFMpegWriter(fps=15, bitrate=8000, extra_args=['-preset', 'ultrafast'])
+        anim.save(filename, writer=writer)
+        print("Animation saved.")
+    else:
+        from matplotlib.animation import PillowWriter
+        gif_name = filename.rsplit('.', 1)[0] + '.gif'
+        writer = PillowWriter(fps=10)
+        anim.save(gif_name, writer=writer)
+        print(f"ffmpeg not available; saved GIF to {gif_name}")
     plt.close(fig)

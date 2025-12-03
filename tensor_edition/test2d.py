@@ -18,7 +18,7 @@ if __name__ == "__main__":
     dt = 0.01
     U = np.zeros((Nt,N+1,N+1))
     # Gaussian bump initial condition, not centered at origin
-    x0, y0 = 0.0, 0.0
+    x0, y0 = -0.5, 0.0
     sigma = 0.1
     X, Y = np.meshgrid(pts, pts, indexing='ij')
     U[0,:,:] = np.exp(-((X - x0)**2 + (Y - y0)**2) / (2 * sigma**2))
@@ -39,7 +39,7 @@ if __name__ == "__main__":
 
     for n in range(Nt-1):
         print(f'Calculating iter {n+1}, previous max: {np.max(U[n,:,:])}')
-        LHS = M/dt-A-C
+        LHS = M/dt-A+C
         # LHS = M/dt-A
         RHS = (1/dt*M)@(map_2d_to_1d(U[n,:,:],N))
         lmod, rmod = modify_lhs_rhs_dirichlet(LHS, RHS, N, 0.0)
@@ -47,4 +47,3 @@ if __name__ == "__main__":
         if(n%10==0):
             # Plot the current state every 10 iterations
             plot_solution_2d(U, np.arange(Nt)*dt, pts, (n+1)*dt)
-

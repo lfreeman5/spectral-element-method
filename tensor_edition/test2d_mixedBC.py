@@ -15,18 +15,18 @@ if __name__ == "__main__":
     U = np.zeros((Nt, N+1, N+1))
 
     # Initial Gaussian
-    x0, y0 = 0.5, 0.0
+    x0, y0 = -0.5, 0.0
     sigma = 0.1
     X, Y = np.meshgrid(pts, pts, indexing='ij')
     U[0,:,:] = np.exp(-((X - x0)**2 + (Y - y0)**2) / (2 * sigma**2))
     M_over = 15
     # Advection velocity (rotational)
-    cx = lambda x,y: -y
-    cy = lambda x,y: x
+    # cx = lambda x,y: -y
+    # cy = lambda x,y: x
 
     # Advection velocity (translational)
-    # cx = lambda x,y: 1
-    # cy = lambda x,y: 0
+    cx = lambda x,y: -1
+    cy = lambda x,y: 0
 
     # Volume advection operator
     mpts, _ = gll_pts_wts(M_over)
@@ -42,10 +42,10 @@ if __name__ == "__main__":
     g_bc = lambda x,y: -1.0  # advecting inflow condition
     zero_flux = lambda x,y: 0.0  # homogeneous Dirichlet
     BCs = {
-        'left':   ('dirichlet', g_bc),
-        'right':  ('neumann', zero_flux),
-        'bottom': ('neumann', zero_flux),
-        'top':    ('neumann', zero_flux),
+        'left':   ('dirichlet', zero_flux),
+        'right':  ('dirichlet', zero_flux),
+        'bottom': ('dirichlet', zero_flux),
+        'top':    ('dirichlet', zero_flux),
     }
     # Time stepping
     for n in range(Nt-1):
@@ -64,4 +64,3 @@ if __name__ == "__main__":
 
         if n % 10 == 0:
             plot_solution_2d(U, np.arange(Nt)*dt, pts, (n+1)*dt)
-
