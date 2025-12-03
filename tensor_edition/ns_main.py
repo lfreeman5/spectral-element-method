@@ -1,6 +1,6 @@
 import numpy as np
 from gll_utils import gll_pts_wts
-from plotting_utils import plot_ns_solution_2d_vector
+from plotting_utils import plot_ns_solution_2d_vector, plot_pressure_2d
 from tensor_sem_utils import create_mass_stiffness_2d, map_1d_to_2d, map_2d_to_1d, modify_lhs_rhs_dirichlet, create_Jhat, create_Dtilde, create_Bhat_Dhat
 from ns_utils import calc_v_hat, pressure_solve, correct_vhat_with_pressure, helmholtz_update, curlcurl
 
@@ -67,8 +67,10 @@ if __name__ == "__main__":
         vel[n+1,:,:] = helmholtz_update(N,dt, k, alpha, A, M, v_hathat, vel_boundary) 
 
     
-        if(n%10==0):
+        if(n%1==0):
             # Plot the current state every 10 iterations
             u2d = map_1d_to_2d(vel[n+1,0,:], N)
             v2d = map_1d_to_2d(vel[n+1,1,:], N)
-            plot_ns_solution_2d_vector(u2d, v2d, np.arange(Nt)*dt, pts, (n+1)*dt)
+            # plot_ns_solution_2d_vector(u2d, v2d, np.arange(Nt)*dt, pts, (n+1)*dt)
+
+            plot_pressure_2d(map_1d_to_2d(p, N), np.arange(Nt)*dt, pts, (n+1)*dt)
