@@ -97,8 +97,8 @@ def modify_lhs_rhs_dirichlet(LHS,RHS,N,u_dirichlet):
         LHS[kR,:] = 0.
         LHS[kL, kL] = 1.
         LHS[kR, kR] = 1.
-        RHS[kL] = u_dirichlet
-        RHS[kR] = u_dirichlet
+        RHS[kL] = 1
+        RHS[kR] = 5
     # Top and bottom
     for i in range(N+1):
         kB = i
@@ -107,8 +107,8 @@ def modify_lhs_rhs_dirichlet(LHS,RHS,N,u_dirichlet):
         LHS[kT,:] = 0.
         LHS[kB, kB] = 1.
         LHS[kT, kT] = 1.
-        RHS[kB] = u_dirichlet
-        RHS[kT] = u_dirichlet
+        RHS[kB] = 2
+        RHS[kT] = 6
     return LHS,RHS
 
 
