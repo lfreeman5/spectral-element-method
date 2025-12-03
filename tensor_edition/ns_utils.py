@@ -45,7 +45,7 @@ def pressure_solve(N,k,dt,vel,vhat,A,M,Dx,Dy,vel_boundary):
     '''
 
     # Set up boundary term 
-    B = np.zeros(((N+1)**2,(N+1)**2))
+    B = np.zeros(((N+1),(N+1)))
 
     # GLL pts, wts
     _,wts = gll_pts_wts(N)
@@ -135,9 +135,9 @@ def helmholtz_update(dt, k, diffusivity, A, M, vhathat):
     LHS = implicit_coeff*M - dt*diffusivity*A
     RHS_u = M@vhathat[0,:] # Chat suggests vhathat should also be multiplied by M
     RHS_v = M@vhathat[1,:] # Makes sense if Beta_k is multiplied by M
-    B = np.column_stack((RHS_u, RHS_v))   # shape (n, 2)
-    sol_next = np.linalg.solve(LHS, B)    # shape (n, 2) - apparantly numpy can solve 2 at once?
-    return sol_next
+    B = np.column_stack((RHS_u, RHS_v))   # shape ((n+1)^2, 2)
+    sol_next = np.linalg.solve(LHS, B)    # shape ((n+1)^2, 2) - apparantly numpy can solve 2 at once?
+    return sol_next.T # shape (2, (n+1)^2)
 
 def curlcurl(velocities,Dx,Dy):
     '''
