@@ -62,27 +62,34 @@ def pressure_solve(N,k,dt,vel,vhat,A,M,Dx,Dy,vel_boundary):
     for j in range(k):
         inner_boundary_term += expl_coeffs[j]*curlcurl(vel[j],Dx,Dy) #
     inner_boundary_term -= vhat/dt
-    inner_boundary_term = map_1d_to_2d(inner_boundary_term, N)
+    inner_boundary_u = map_1d_to_2d(inner_boundary_term[0],N)
+    inner_boundary_v = map_1d_to_2d(inner_boundary_term[1],N)
+    inner_boundary_term = np.array([inner_boundary_u, inner_boundary_v])
+    # inner_boundary_term = map_1d_to_2d(inner_boundary_term, N)
     # At this point need to move to side-by-side based on velocity in
     # Bottom: 
+    # Everything is (2x(N+1)**2)
     bottom_normal = np.array([0,-1])
-    bottom_term = inner_boundary_term[:,0] + np.tile(vel_boundary[0], (N+1,1))/dt # Last part is the g/dt component
-    bottom_dotted = -np.dot(bottom_term, bottom_normal) # This should be an (N+1)x1 column vector???
+    bottom_term = inner_boundary_term[:,:,0] + np.tile(vel_boundary[0], (N+1,1)).T/dt # shape (2, N+1)
+    bottom_dotted = -np.dot(bottom_normal, bottom_term) # shape (N+1,)
     B[:,0] += bottom_dotted*wts
+
     # Right: 
     right_normal = np.array([1,0])
-    right_term = inner_boundary_term[-1,:] + np.tile(vel_boundary[3], (N+1,1))/dt
-    right_dotted = -np.dot(right_term, right_normal)
+    right_term = inner_boundary_term[:,-1,:] + np.tile(vel_boundary[3], (N+1,1)).T/dt # shape (2, N+1)
+    right_dotted = -np.dot(right_normal, right_term) # shape (N+1,)
     B[-1,:] += right_dotted*wts
+
     # Top: 
     top_normal = np.array([0,1])
-    top_term = inner_boundary_term[:,-1] + np.tile(vel_boundary[1], (N+1,1))/dt
-    top_dotted = -np.dot(top_term, top_normal)
+    top_term = inner_boundary_term[:,:, -1] + np.tile(vel_boundary[1], (N+1,1)).T/dt # shape (2, N+1)
+    top_dotted = -np.dot(top_normal, top_term) # shape (N+1,)
     B[:,-1] += -top_dotted*wts
+
     # Left: 
     left_normal = np.array([-1,0])
-    left_term = inner_boundary_term[0,:] + np.tile(vel_boundary[2], (N+1,1))/dt
-    left_dotted = -np.dot(left_term,left_normal)
+    left_term = inner_boundary_term[:,0,:] + np.tile(vel_boundary[2], (N+1,1)).T/dt # shape (2, N+1)
+    left_dotted = -np.dot(left_normal, left_term) # shape (N+1,)
     B[0,:] += -left_dotted*wts
     # Then assemble the boundary condition with constant g. Then map full thing 1d-to-2d and extract the relevant side
     # ^^^ That is horribly inefficient
