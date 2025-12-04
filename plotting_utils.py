@@ -13,7 +13,8 @@ def plot_solution_2d(U_solution, times, gll_pts, t, N_pts=50):
     
     x = np.linspace(-1, 1, N_pts)
     y = np.linspace(-1, 1, N_pts)
-    X, Y = np.meshgrid(x, y)
+    # X, Y = np.meshgrid(x, y)
+    X, Y = np.meshgrid(x, y, indexing='ij')
     # Pass 1D arrays to u_func, then transpose for plotting if needed
     U_plot = u_func(x, y)
     if U_plot.shape != X.shape:

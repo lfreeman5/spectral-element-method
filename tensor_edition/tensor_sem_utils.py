@@ -347,3 +347,20 @@ def construct_advection_flux_rhs_2d(u_field, c, N, pts, wts, BCs=None):
                 rhs2d[ix, iy] += vn * u_field[ix, iy] * wts[k]
 
     return rhs2d
+
+if __name__ == "__main__":
+    # create a simple test with a 3x3 matrix. Map to 1D and back and see if same
+    N=4
+    # create an array with distinct boundary labels
+    A = np.zeros((N+1,N+1), dtype=int)
+    A[0,:] = 10   # left
+    A[-1,:] = 20  # right
+    A[:,0] = 30   # bottom
+    A[:,-1] = 40  # top
+    print("A (2D):\n", A)
+    v = map_2d_to_1d(A, N)
+    A2 = map_1d_to_2d(v, N)
+    print("Restored A2 (should match A):\n", A2)
+    print("Are they equal?", np.array_equal(A, A2))
+
+    

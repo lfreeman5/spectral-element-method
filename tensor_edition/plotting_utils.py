@@ -114,18 +114,18 @@ def plot_ns_solution_2d_vector(u_2d, v_2d, times, gll_pts, t, N_pts=40):
     # grid for plotting
     x = np.linspace(-1, 1, N_pts)
     y = np.linspace(-1, 1, N_pts)
-    X, Y = np.meshgrid(x, y)
+    # X, Y = np.meshgrid(x, y)
+    X, Y = np.meshgrid(x, y, indexing='ij')
 
     # evaluate velocity field
     U = u_func(x, y)
     V = v_func(x, y)
-
-
     
     # transpose if needed
     if U.shape != X.shape:
-        U = U.T
-        V = V.T
+        # U = U.T
+        # V = V.T
+        print("SHAPE MISMATCH:", U.shape, X.shape)
 
     # magnitude
     speed = np.sqrt(U**2 + V**2)
