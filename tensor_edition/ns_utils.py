@@ -24,12 +24,12 @@ def calc_v_hat(k, dt, saved_vel_coefs, M, J_hat, B_M, D_tilde):
 
 
         Cu, Cv = nonlinear_advection_at_previous_time(saved_vel_coefs[j,0,:], saved_vel_coefs[j,1,:], J_hat, B_M, D_tilde) # j = 0 is
-        v_hat_u += -beta_k_minus_j[j]*M@saved_vel_coefs[j,0,:] + dt*bj[j]*Cu
-        v_hat_v += -beta_k_minus_j[j]*M@saved_vel_coefs[j,1,:] + dt*bj[j]*Cv
+        v_hat_u += -beta_k_minus_j[j]*saved_vel_coefs[j,0,:] + dt*bj[j]*Cu
+        v_hat_v += -beta_k_minus_j[j]*saved_vel_coefs[j,1,:] + dt*bj[j]*Cv
 
     return np.array([v_hat_u, v_hat_v]) # Change shape to be 2 x (N+1)^2 
 
-def pressure_solve(N,k,dt,vel,vhat,A,M,Dx,Dy,vel_boundary):
+def pressure_solve(N,k,viscosity,dt,vel,vhat,A,M,Dx,Dy,vel_boundary):
     '''
     Solves the pressure Poisson equation for incompressible flow.
     N: int, polynomial order
@@ -53,7 +53,7 @@ def pressure_solve(N,k,dt,vel,vhat,A,M,Dx,Dy,vel_boundary):
 
     # Time integration coeffs
     expl_coeffs = AB_coefs(k)
-    impl_coeffs = BDFk_coefs(k)
+    beta0, _ = BDFk_coefs(k)
 
     # Compute div(vhat)/dt
     div_vhat = Dx@vhat[0]+Dy@vhat[1]
@@ -61,7 +61,7 @@ def pressure_solve(N,k,dt,vel,vhat,A,M,Dx,Dy,vel_boundary):
     # Compute curl(curl(v^{n+1-j})) for non-boundary-dependent part
     inner_boundary_term = np.zeros((2,(N+1)**2))
     for j in range(k):
-        inner_boundary_term += expl_coeffs[j]*curlcurl(vel[j],Dx,Dy) #
+        inner_boundary_term += viscosity*expl_coeffs[j]*curlcurl(vel[j],Dx,Dy) #
     inner_boundary_term -= vhat/dt
     inner_boundary_u = map_1d_to_2d(inner_boundary_term[0],N)
     inner_boundary_v = map_1d_to_2d(inner_boundary_term[1],N)
@@ -71,39 +71,41 @@ def pressure_solve(N,k,dt,vel,vhat,A,M,Dx,Dy,vel_boundary):
     # Bottom: 
     # Everything is (2x(N+1)**2)
     bottom_normal = np.array([0,-1])
-    bottom_term = inner_boundary_term[:,:,0] + np.tile(vel_boundary[0], (N+1,1)).T/dt # shape (2, N+1)
+    bottom_term = inner_boundary_term[:,:,0] + beta0*np.tile(vel_boundary[0], (N+1,1)).T/dt # shape (2, N+1)
     bottom_dotted = -np.dot(bottom_normal, bottom_term) # shape (N+1,)
     B[:,0] += bottom_dotted*wts
 
     # Right: 
     right_normal = np.array([1,0])
-    right_term = inner_boundary_term[:,-1,:] + np.tile(vel_boundary[3], (N+1,1)).T/dt # shape (2, N+1)
+    right_term = inner_boundary_term[:,-1,:] + beta0*np.tile(vel_boundary[3], (N+1,1)).T/dt # shape (2, N+1)
     right_dotted = -np.dot(right_normal, right_term) # shape (N+1,)
     B[-1,:] += right_dotted*wts
 
     # Top: 
     top_normal = np.array([0,1])
-    top_term = inner_boundary_term[:,:, -1] + np.tile(vel_boundary[1], (N+1,1)).T/dt # shape (2, N+1)
+    top_term = inner_boundary_term[:,:, -1] + beta0*np.tile(vel_boundary[1], (N+1,1)).T/dt # shape (2, N+1)
     top_dotted = -np.dot(top_normal, top_term) # shape (N+1,)
     B[:,-1] += -top_dotted*wts
 
     # Left: 
     left_normal = np.array([-1,0])
-    left_term = inner_boundary_term[:,0,:] + np.tile(vel_boundary[2], (N+1,1)).T/dt # shape (2, N+1)
+    left_term = inner_boundary_term[:,0,:] + beta0*np.tile(vel_boundary[2], (N+1,1)).T/dt # shape (2, N+1)
     left_dotted = -np.dot(left_normal, left_term) # shape (N+1,)
     B[0,:] += -left_dotted*wts
     # Then assemble the boundary condition with constant g. Then map full thing 1d-to-2d and extract the relevant side
     # ^^^ That is horribly inefficient
-
+    # B*=0
     # Then we move to the pressure solve
     # Solve (A,b) where A is stiffness, b=f_ij+boundary
     # assemble f_ij based on div vhat, I think M kron div vhat? 
-    F = M@div_vhat
+    F = M@div_vhat/dt
     LHS = A # Check sign on this - should incorporate the negative in constructing it
     RHS = F + map_2d_to_1d(B,N)
     p = np.linalg.solve(LHS, RHS)
 
-    return p # P is (N+1)^2 column vector 
+    p_mean = np.sum(M@p)/np.sum(M)
+
+    return p - p_mean # P is (N+1)^2 column vector 
 
 def correct_vhat_with_pressure(N,dt,vhat,p,Dx,Dy):
     '''
