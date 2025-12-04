@@ -24,8 +24,8 @@ def calc_v_hat(k, dt, saved_vel_coefs, M, J_hat, B_M, D_tilde):
 
 
         Cu, Cv = nonlinear_advection_at_previous_time(saved_vel_coefs[j,0,:], saved_vel_coefs[j,1,:], J_hat, B_M, D_tilde) # j = 0 is
-        v_hat_u += -beta_k_minus_j[j]*M@saved_vel_coefs[j,0,:] + dt*bj[j]*Cu
-        v_hat_v += -beta_k_minus_j[j]*M@saved_vel_coefs[j,1,:] + dt*bj[j]*Cv
+        v_hat_u += -beta_k_minus_j[j]*saved_vel_coefs[j,0,:] + dt*bj[j]*Cu
+        v_hat_v += -beta_k_minus_j[j]*saved_vel_coefs[j,1,:] + dt*bj[j]*Cv
 
     return np.array([v_hat_u, v_hat_v]) # Change shape to be 2 x (N+1)^2 
 
@@ -98,12 +98,15 @@ def pressure_solve(N,k,dt,vel,vhat,A,M,Dx,Dy,vel_boundary):
     # Then we move to the pressure solve
     # Solve (A,b) where A is stiffness, b=f_ij+boundary
     # assemble f_ij based on div vhat, I think M kron div vhat? 
-    F = M@div_vhat
+    F = M@div_vhat/dt
     LHS = A # Check sign on this - should incorporate the negative in constructing it
+    B*=0 # Inviscid pressure condition
     RHS = F + map_2d_to_1d(B,N)
     p = np.linalg.solve(LHS, RHS)
 
-    return p # P is (N+1)^2 column vector 
+    pmean = np.sum(M@p)/np.sum(M)
+
+    return p-pmean # P is (N+1)^2 column vector 
 
 def correct_vhat_with_pressure(N,dt,vhat,p,Dx,Dy):
     '''

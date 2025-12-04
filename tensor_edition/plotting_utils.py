@@ -120,6 +120,8 @@ def plot_ns_solution_2d_vector(u_2d, v_2d, times, gll_pts, t, N_pts=40):
     U = u_func(x, y)
     V = v_func(x, y)
 
+
+    
     # transpose if needed
     if U.shape != X.shape:
         U = U.T
@@ -134,7 +136,7 @@ def plot_ns_solution_2d_vector(u_2d, v_2d, times, gll_pts, t, N_pts=40):
     c = ax.pcolormesh(X, Y, speed, shading='auto')
 
     # quiver (vector arrows)
-    ax.quiver(X, Y, U, V, color='white', scale=40)
+    ax.quiver(X, Y, U/speed, V/speed, color='white', scale=40)
 
     fig.colorbar(c, ax=ax, label='|v|')
     ax.set_title(f"Velocity field at t = {t:.3f}")
