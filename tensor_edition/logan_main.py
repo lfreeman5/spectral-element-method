@@ -1,6 +1,7 @@
 import numpy as np
+import imageio
 from gll_utils import gll_pts_wts
-from plotting_utils import plot_ns_solution_2d_vector, plot_pressure_2d
+from plotting_utils import plot_ns_solution_2d_vector, plot_pressure_2d, animate_ns_solution_2d_vector
 from tensor_sem_utils import create_mass_stiffness_2d, map_1d_to_2d, map_2d_to_1d, modify_lhs_rhs_dirichlet, create_Jhat, create_Dtilde, create_Bhat_Dhat
 from ns_utils import calc_v_hat, pressure_solve, correct_vhat_with_pressure, helmholtz_update, curlcurl, evaluate_cfl
 
@@ -9,6 +10,9 @@ from ns_utils import calc_v_hat, pressure_solve, correct_vhat_with_pressure, hel
 
 if __name__ == "__main__":
 
+    plot = False
+    animate = True
+    
     # Define N
     # Create mass, stiffness matrices, which will be N2 x N2
     # Create 2D u0 
@@ -19,10 +23,12 @@ if __name__ == "__main__":
     
     k = 3 # time stepping order for BDFk/ABk 
     
-    Nt = 50000
-    dt = 0.01
+    Nt = 4000
+    dt = 0.001
 
-    lid_velocity = 100.0
+    lid_velocity = 10.0
+
+    Re = lid_velocity*2/alpha
 
 
     vel = np.zeros((Nt,2,(N+1)**2))
@@ -75,10 +81,14 @@ if __name__ == "__main__":
 
 
 
-        if(n>1000 and n%100==0):
+        if(plot and n>1 and n%100==0):
             # Plot the current state every 10 iterations
             u2d = map_1d_to_2d(vel[n+1,0,:], N)
             v2d = map_1d_to_2d(vel[n+1,1,:], N)
             plot_ns_solution_2d_vector(u2d, v2d, np.arange(Nt)*dt, pts, (n+1)*dt)
+            # plot_pressure_2d(map_1d_to_2d(p, N), np.arange(Nt)*dt, pts, (n+1)*dt)
 
-            plot_pressure_2d(map_1d_to_2d(p, N), np.arange(Nt)*dt, pts, (n+1)*dt)
+
+    if animate:
+        animate_ns_solution_2d_vector(N, vel,np.arange(Nt)*dt,pts,f"tensor_edition/lid_driven_cavity_animations/lid_driven_cavity_cfl={cfl:.2e}_Re={Re:.1e}.mp4",40, 10)
+

@@ -173,3 +173,5 @@ def evaluate_cfl(N,dt,vel):
     min_dist = np.abs(gll_pts[1]-gll_pts[0])
     cfl = (max_vel*dt)/min_dist
     return cfl
+
+

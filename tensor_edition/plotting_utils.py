@@ -1,7 +1,12 @@
 import numpy as np
+import imageio
+import matplotlib
+matplotlib.use('Agg')  # Non-interactive backend
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from lagrange_utils import construct_solution_2d_fast
+from matplotlib.animation  import FuncAnimation, FFMpegWriter
+from tensor_sem_utils import map_1d_to_2d
 
 
 def plot_solution_2d(U_solution, times, gll_pts, t, N_pts=50):
@@ -143,7 +148,7 @@ def plot_ns_solution_2d_vector(u_2d, v_2d, times, gll_pts, t, N_pts=40):
     ax.set_xlabel("x")
     ax.set_ylabel("y")
     plt.tight_layout()
-    plt.show()
+    # plt.show()
 
 def plot_pressure_2d(p1d, times, gll_pts, t, N_pts=50):
     """
@@ -188,3 +193,79 @@ def plot_pressure_2d(p1d, times, gll_pts, t, N_pts=50):
     fig.colorbar(c, ax=ax)
     plt.tight_layout()
     plt.show()
+
+
+
+
+
+def animate_ns_solution_2d_vector(N, vel, times, gll_pts, filename, N_pts=40, step=10):
+    """
+    Animate a 2D velocity field (u, v) and save as MP4 using imageio.
+
+    Parameters
+    ----------
+    vel : ndarray
+        Velocity data, shape (Nt, 2, (N+1)**2), with u and v stored in axis 1.
+    times : ndarray
+        Array of time values corresponding to vel.
+    gll_pts : ndarray
+        Spectral element GLL points (for interpolation).
+    filename : str
+        Output filename (should end with .mp4).
+    N_pts : int, optional
+        Number of points in x and y for plotting, by default 40.
+    step : int, optional
+        Plot every `step` time steps, by default 10.
+    """
+    frames = []
+
+    Nt = vel.shape[0]
+    print(f"Animating {Nt} steps (every {step} steps)...")
+
+    for n in range(0, Nt, step):
+        if n%100==0: print(f"  Frame {n+1}/{Nt} (t={times[n]:.3f})")
+
+        u_2d = map_1d_to_2d(vel[n,0,:], N)
+        v_2d = map_1d_to_2d(vel[n,1,:], N)
+
+        # Construct spectral interpolants
+        u_func = construct_solution_2d_fast(u_2d, gll_pts)
+        v_func = construct_solution_2d_fast(v_2d, gll_pts)
+
+        # Create grid
+        x = np.linspace(-1, 1, N_pts)
+        y = np.linspace(-1, 1, N_pts)
+        X, Y = np.meshgrid(x, y, indexing='ij')
+
+        # Evaluate velocity field
+        U = u_func(x, y)
+        V = v_func(x, y)
+        speed = np.sqrt(U**2 + V**2)
+
+        # Avoid division by zero
+        U_norm = np.divide(U, speed, out=np.zeros_like(U), where=speed!=0)
+        V_norm = np.divide(V, speed, out=np.zeros_like(V), where=speed!=0)
+
+        # Create figure
+        fig, ax = plt.subplots(figsize=(6,5))
+        c = ax.pcolormesh(X, Y, speed, shading='auto', cmap='viridis')
+        ax.quiver(X, Y, U_norm, V_norm, color='white', scale=40)
+        ax.set_title(f"Velocity field at t = {times[n]:.3f}")
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+        fig.colorbar(c, ax=ax, label='|v|')
+        plt.tight_layout()
+
+        # Convert figure to image
+        fig.canvas.draw()
+        # Get RGB image from figure
+        w, h = fig.canvas.get_width_height()
+        buf, _ = fig.canvas.print_to_buffer()
+        image = np.frombuffer(buf, dtype='uint8').reshape(h, w, 4)  # RGBA
+        image = image[..., :3]  # drop alpha channel to get RGB
+        frames.append(image)
+        plt.close(fig)
+
+    print(f"Saving animation to {filename}...")
+    imageio.mimwrite(filename, frames, fps=15, codec='libx264')
+    print("Animation saved.")
