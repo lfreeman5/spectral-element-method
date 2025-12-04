@@ -172,7 +172,7 @@ def plot_pressure_2d(p1d, times, gll_pts, t, N_pts=50):
     # uniform grid
     x = np.linspace(-1, 1, N_pts)
     y = np.linspace(-1, 1, N_pts)
-    X, Y = np.meshgrid(x, y)
+    X, Y = np.meshgrid(x, y, indexing='ij')
 
     # evaluate
     P_plot = p_func(x, y)
