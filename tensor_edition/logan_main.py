@@ -12,8 +12,8 @@ if __name__ == "__main__":
     # Define N
     # Create mass, stiffness matrices, which will be N2 x N2
     # Create 2D u0 
-    alpha = .001
-    N = 9
+    alpha = .1
+    N = 11
     pts, wts = gll_pts_wts(N)
     M,A = create_mass_stiffness_2d(N)
     
@@ -22,7 +22,7 @@ if __name__ == "__main__":
     Nt = 50000
     dt = 0.01
 
-    lid_velocity = 10.0
+    lid_velocity = 100.0
 
 
     vel = np.zeros((Nt,2,(N+1)**2))
@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
 
     # Deal with advection field
-    M_over = 15 # Overintegrated velocity field
+    M_over = 17 # Overintegrated velocity field
     mpts, _ = gll_pts_wts(M_over)
 
     # calc matrices that are constant
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     Dy = np.kron(D_hat_N,eye) 
 
     for n in range(k-1, Nt-1):
-        if(n%1==0):
+        if(n%100==0):
             print(f'Calculating iter {n+1}, previous max u: {np.max(vel[n,0,:])}, previous max v: {np.max(vel[n,1,:])}')
             cfl = evaluate_cfl(N, dt, vel[n,:,:])
             print("cfl = ", cfl )
@@ -66,7 +66,7 @@ if __name__ == "__main__":
 
         # do pressure solve
         # print("Pressure solve")
-        p = pressure_solve(N, k, dt, vel[(n-k+1):(n+1)][::-1], v_hat, A, M, Dx, Dy, vel_boundary)
+        p = pressure_solve(N, k, alpha, dt, vel[(n-k+1):(n+1)][::-1], v_hat, A, M, Dx, Dy, vel_boundary)
         v_hathat = correct_vhat_with_pressure(N,dt,v_hat, p, Dx, Dy)
 
         # do helmholtz solves
@@ -75,7 +75,7 @@ if __name__ == "__main__":
 
 
 
-        if(n>1 and n%1==0):
+        if(n>1000 and n%100==0):
             # Plot the current state every 10 iterations
             u2d = map_1d_to_2d(vel[n+1,0,:], N)
             v2d = map_1d_to_2d(vel[n+1,1,:], N)
